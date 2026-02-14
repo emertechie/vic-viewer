@@ -19,19 +19,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src/ui"),
     },
   },
-  // server: {
-  //   port: 5173,
-  //   proxy: {
-  //     "/api": {
-  //       target: "http://localhost:4319",
-  //       changeOrigin: true,
-  //     },
-  //     "/v1": {
-  //       target: "http://localhost:4319",
-  //       changeOrigin: true,
-  //     },
-  //   },
-  // },
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://localhost:4319",
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     outDir: path.resolve(__dirname, "dist/ui"),
     emptyOutDir: true,
