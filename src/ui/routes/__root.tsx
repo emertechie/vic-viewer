@@ -1,5 +1,6 @@
 import * as React from "react";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import { createDefaultLogsSearch } from "@/features/logs/state/search";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -14,6 +15,7 @@ function RootLayout() {
           <div className="h-4 w-px bg-border" />
           <Link
             to="/logs"
+            search={() => createDefaultLogsSearch()}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground [&.active]:text-foreground"
           >
             Logs

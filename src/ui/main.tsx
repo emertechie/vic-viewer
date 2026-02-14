@@ -23,6 +23,8 @@ declare module "@tanstack/react-router" {
 
 const rootEl = document.getElementById("root");
 if (rootEl) {
+  document.documentElement.classList.add("dark");
+
   ReactDOM.createRoot(rootEl).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
