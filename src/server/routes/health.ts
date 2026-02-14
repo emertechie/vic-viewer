@@ -11,7 +11,7 @@ const healthResponseSchema = z.object({
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
-export async function registerHealthRoutes(
+export function registerHealthRoutes(
   app: FastifyInstance,
   options: { isDatabaseReady: () => boolean },
 ) {

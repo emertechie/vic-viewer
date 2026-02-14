@@ -8,6 +8,7 @@ const envSchema = z.object({
   VICTORIA_LOGS_URL: z.string().url().default("http://localhost:9428"),
   VICTORIA_TRACES_URL: z.string().url().default("http://localhost:10428"),
   VICTORIA_METRICS_URL: z.string().url().default("http://localhost:8428"),
+  VICSTACK_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 });
 
 export type AppConfig = {
@@ -17,6 +18,7 @@ export type AppConfig = {
   victoriaLogsUrl: string;
   victoriaTracesUrl: string;
   victoriaMetricsUrl: string;
+  vicStackTimeoutMs: number;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -29,5 +31,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     victoriaLogsUrl: parsed.VICTORIA_LOGS_URL,
     victoriaTracesUrl: parsed.VICTORIA_TRACES_URL,
     victoriaMetricsUrl: parsed.VICTORIA_METRICS_URL,
+    vicStackTimeoutMs: parsed.VICSTACK_TIMEOUT_MS,
   };
 }

@@ -1,8 +1,14 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
+import { ZodError } from "zod";
+import type { LogsViewSettingsStore } from "./db/settingsStore";
+import { errorResponseSchema } from "./schemas/errors";
 import { registerHealthRoutes } from "./routes/health";
+import { registerSettingsRoutes } from "./routes/settings";
+import { UpstreamRequestError } from "./vicstack/upstreamError";
 
 export type AppServices = {
   isDatabaseReady: () => boolean;
+  logsViewSettingsStore: LogsViewSettingsStore;
 };
 
 export type BuildAppOptions = {
@@ -12,6 +18,17 @@ export type BuildAppOptions = {
 
 const defaultServices: AppServices = {
   isDatabaseReady: () => false,
+  logsViewSettingsStore: {
+    get: () => {
+      throw new Error("Logs view settings store not configured");
+    },
+    put: () => {
+      throw new Error("Logs view settings store not configured");
+    },
+    seedDefaults: () => {
+      throw new Error("Logs view settings store not configured");
+    },
+  },
 };
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -25,15 +42,45 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   };
 
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof ZodError) {
+      reply.status(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_ERROR",
+          message: "Request validation failed",
+          details: error.flatten(),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof UpstreamRequestError) {
+      reply.status(error.statusCode).send(
+        errorResponseSchema.parse({
+          code: "UPSTREAM_REQUEST_FAILED",
+          message: error.message,
+          details: {
+            source: error.source,
+            statusCode: error.statusCode,
+          },
+        }),
+      );
+      return;
+    }
+
     request.log.error({ err: error }, "Unhandled API error");
-    reply.status(500).send({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Unexpected server error",
-    });
+    reply.status(500).send(
+      errorResponseSchema.parse({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Unexpected server error",
+      }),
+    );
   });
 
-  void registerHealthRoutes(app, {
+  registerHealthRoutes(app, {
     isDatabaseReady: services.isDatabaseReady,
+  });
+  registerSettingsRoutes(app, {
+    logsViewSettingsStore: services.logsViewSettingsStore,
   });
 
   return app;
