@@ -6,13 +6,6 @@ export default defineConfig({
     projects: [
       {
         test: {
-          name: "server",
-          environment: "node",
-          include: ["tests/server/**/*.test.ts"],
-        },
-      },
-      {
-        test: {
           name: "ui",
           environment: "jsdom",
           include: ["tests/ui/**/*.test.{ts,tsx}"],

@@ -4,12 +4,9 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "node --watch -r ts-node/register src/server.ts",
-    "dev:ui": "vite",
-    "build": "tsc -p tsconfig.json",
-    "build:ui": "vite build",
-    "preview:ui": "vite preview",
-    "start": "node dist/server.js",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
@@ -17,7 +14,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:server": "vitest run --project server",
     "test:ui": "vitest run --project ui",
     "test:e2e": "playwright test",
     "test:all": "vitest run && playwright test"
