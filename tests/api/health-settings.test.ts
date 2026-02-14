@@ -20,6 +20,9 @@ describe("API health and settings routes", () => {
       services: {
         isDatabaseReady: () => true,
         logsViewSettingsStore: initializedDb.logsViewSettingsStore,
+        victoriaLogsClient: {
+          queryRaw: async () => [],
+        },
       },
     });
   });

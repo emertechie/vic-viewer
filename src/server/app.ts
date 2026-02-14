@@ -3,12 +3,15 @@ import { ZodError } from "zod";
 import type { LogsViewSettingsStore } from "./db/settingsStore";
 import { errorResponseSchema } from "./schemas/errors";
 import { registerHealthRoutes } from "./routes/health";
+import { registerLogsRoutes } from "./routes/logs";
 import { registerSettingsRoutes } from "./routes/settings";
 import { UpstreamRequestError } from "./vicstack/upstreamError";
+import type { VictoriaLogsClient } from "./vicstack/victoriaLogsClient";
 
 export type AppServices = {
   isDatabaseReady: () => boolean;
   logsViewSettingsStore: LogsViewSettingsStore;
+  victoriaLogsClient: VictoriaLogsClient;
 };
 
 export type BuildAppOptions = {
@@ -27,6 +30,11 @@ const defaultServices: AppServices = {
     },
     seedDefaults: () => {
       throw new Error("Logs view settings store not configured");
+    },
+  },
+  victoriaLogsClient: {
+    queryRaw: async () => {
+      throw new Error("VictoriaLogs client not configured");
     },
   },
 };
@@ -81,6 +89,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
   registerSettingsRoutes(app, {
     logsViewSettingsStore: services.logsViewSettingsStore,
+  });
+  registerLogsRoutes(app, {
+    victoriaLogsClient: services.victoriaLogsClient,
   });
 
   return app;

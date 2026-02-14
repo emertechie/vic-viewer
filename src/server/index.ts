@@ -1,17 +1,21 @@
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { initializeDatabase } from "./db/init";
+import { getVicStackConfig } from "./vicstack/config";
+import { createVictoriaLogsClient } from "./vicstack/victoriaLogsClient";
 
 async function startServer() {
   const config = loadConfig();
   let isDatabaseReady = false;
   const { database, logsViewSettingsStore } = initializeDatabase(config.databasePath);
   isDatabaseReady = true;
+  const victoriaLogsClient = createVictoriaLogsClient(getVicStackConfig(config));
 
   const app = buildApp({
     services: {
       isDatabaseReady: () => isDatabaseReady,
       logsViewSettingsStore,
+      victoriaLogsClient,
     },
   });
 
