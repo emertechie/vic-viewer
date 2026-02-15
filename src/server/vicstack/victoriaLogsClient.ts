@@ -11,6 +11,35 @@ export type VictoriaLogsClient = {
   }) => Promise<unknown>;
 };
 
+function parseNdjsonLines(body: string): unknown[] {
+  return body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as unknown);
+}
+
+export function parseVictoriaLogsQueryResponse(body: string): unknown {
+  const trimmedBody = body.trim();
+  if (trimmedBody.length === 0) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(trimmedBody) as unknown;
+  } catch (jsonError) {
+    try {
+      return parseNdjsonLines(trimmedBody);
+    } catch (ndjsonError) {
+      throw new Error(
+        `Unable to parse VictoriaLogs response as JSON or NDJSON: ${
+          ndjsonError instanceof Error ? ndjsonError.message : "unknown parse error"
+        }`,
+      );
+    }
+  }
+}
+
 export function createVictoriaLogsClient(config: VicStackConfig): VictoriaLogsClient {
   return {
     async queryRaw(options) {
@@ -29,11 +58,7 @@ export function createVictoriaLogsClient(config: VicStackConfig): VictoriaLogsCl
           signal: options.abortSignal,
         },
         parse: (body) => {
-          if (!body) {
-            return [];
-          }
-
-          return JSON.parse(body) as unknown;
+          return parseVictoriaLogsQueryResponse(body);
         },
       });
     },
