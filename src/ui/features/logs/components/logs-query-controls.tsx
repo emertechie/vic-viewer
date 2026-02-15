@@ -39,7 +39,11 @@ export function LogsQueryControls(props: {
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
-      const nextQuery = queryText.trim() || "*";
+      const trimmedQuery = queryText.trim();
+      const nextQuery = trimmedQuery || "*";
+      if (!trimmedQuery && queryText !== "*") {
+        setQueryText("*");
+      }
 
       if (range === "absolute") {
         if (!absoluteStart || !absoluteEnd) {
