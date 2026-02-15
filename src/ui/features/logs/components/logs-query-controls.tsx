@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Play } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
 import { buildRelativeWindow } from "../state/search";
 
@@ -104,6 +105,22 @@ export function LogsQueryControls(props: {
     [absoluteEnd, absoluteStart, props, queryText, range],
   );
 
+  const runQueryButton = (
+    <button
+      type="submit"
+      className="relative inline-flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+    >
+      <Play className="h-3.5 w-3.5" aria-hidden />
+      Run Query
+      {hasUnappliedChanges ? (
+        <span
+          className="absolute right-1 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-card"
+          aria-hidden
+        />
+      ) : null}
+    </button>
+  );
+
   return (
     <form
       onSubmit={applySearch}
@@ -181,17 +198,16 @@ export function LogsQueryControls(props: {
       >
         {props.search.live === "1" ? "Live On" : "Live Off"}
       </button>
-      <button
-        type="submit"
-        className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
-          hasUnappliedChanges
-            ? "border-primary/70 bg-primary text-primary-foreground hover:bg-primary/90"
-            : "border-input bg-card text-foreground hover:bg-accent"
-        }`}
-      >
-        <Play className="h-3.5 w-3.5" aria-hidden />
-        Execute Query
-      </button>
+      {hasUnappliedChanges ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{runQueryButton}</TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            Run query to apply changes
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        runQueryButton
+      )}
     </form>
   );
 }
