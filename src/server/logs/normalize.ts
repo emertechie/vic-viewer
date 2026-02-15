@@ -104,6 +104,16 @@ export function compareLogRows(left: LogRow, right: LogRow): number {
     return timeDelta;
   }
 
+  const leftSequence = left.message.match(/^SEQ:(\d+)/)?.[1];
+  const rightSequence = right.message.match(/^SEQ:(\d+)/)?.[1];
+  if (leftSequence && rightSequence) {
+    const leftValue = Number.parseInt(leftSequence, 10);
+    const rightValue = Number.parseInt(rightSequence, 10);
+    if (!Number.isNaN(leftValue) && !Number.isNaN(rightValue) && leftValue !== rightValue) {
+      return leftValue - rightValue;
+    }
+  }
+
   return left.key.localeCompare(right.key);
 }
 
