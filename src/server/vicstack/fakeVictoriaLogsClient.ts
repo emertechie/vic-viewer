@@ -65,6 +65,30 @@ function resolveCadenceMs(ageMs: number, profile: FakeLogsProfile): number {
   return 5 * 60 * 1000;
 }
 
+function resolveAdaptiveCadenceCapMs(options: {
+  startMs: number;
+  endMs: number;
+  limit: number;
+  cursorDirection?: "older" | "newer";
+}): number | null {
+  if (options.cursorDirection) {
+    return null;
+  }
+
+  const historicalWindow = options.endMs < Date.now() - 60_000;
+  if (!historicalWindow) {
+    return null;
+  }
+
+  const durationMs = options.endMs - options.startMs;
+  if (durationMs <= 0) {
+    return null;
+  }
+
+  const targetTicks = Math.max(options.limit * 2, options.limit + 1);
+  return Math.max(1_000, Math.floor(durationMs / targetTicks));
+}
+
 function resolveRecordsPerTick(profile: FakeLogsProfile, seed: string): number {
   const random = hashToUnitInterval(seed);
 
@@ -147,6 +171,7 @@ function generateRecords(options: {
   nowMs: number;
   profile: FakeLogsProfile;
   seed: string;
+  cadenceCapMs?: number;
 }): FakeLogRecord[] {
   if (options.endMs <= options.startMs) {
     return [];
@@ -158,7 +183,10 @@ function generateRecords(options: {
 
   while (tickMs <= options.endMs) {
     const ageMs = Math.max(0, options.nowMs - tickMs);
-    const cadenceMs = resolveCadenceMs(ageMs, options.profile);
+    const cadenceMs =
+      options.cadenceCapMs === undefined
+        ? resolveCadenceMs(ageMs, options.profile)
+        : Math.min(resolveCadenceMs(ageMs, options.profile), options.cadenceCapMs);
     const count = resolveRecordsPerTick(options.profile, `${options.seed}:count:${tickMs}`);
 
     for (let index = 0; index < count; index += 1) {
@@ -231,6 +259,13 @@ export function createFakeVictoriaLogsClient(options: {
         nowMs: Date.now(),
         profile: options.profile,
         seed: options.seed,
+        cadenceCapMs:
+          resolveAdaptiveCadenceCapMs({
+            startMs,
+            endMs,
+            limit: request.limit,
+            cursorDirection: request.cursorDirection,
+          }) ?? undefined,
       }).sort((left, right) => {
         if (left.timestampMs !== right.timestampMs) {
           return right.timestampMs - left.timestampMs;
