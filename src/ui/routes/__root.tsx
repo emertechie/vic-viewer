@@ -1,41 +1,15 @@
 import * as React from "react";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { Moon, Sun } from "lucide-react";
+import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { createDefaultLogsSearch } from "@/features/logs/state/search";
+import { useThemeMode } from "@/hooks/use-theme-mode";
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
-const THEME_STORAGE_KEY = "vic-viewer-theme";
-
-type ThemeMode = "light" | "dark";
-
-function getInitialTheme(): ThemeMode {
-  if (typeof window === "undefined") {
-    return "dark";
-  }
-
-  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (storedTheme === "light" || storedTheme === "dark") {
-    return storedTheme;
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
 function RootLayout() {
-  const [theme, setTheme] = React.useState<ThemeMode>(() => getInitialTheme());
-
-  React.useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.style.colorScheme = theme;
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
-
-  const toggleTheme = React.useCallback(() => {
-    setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
-  }, []);
+  const { theme, toggleTheme } = useThemeMode();
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -57,15 +31,7 @@ function RootLayout() {
             Traces
           </Link>
         </nav>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-input bg-card px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-        >
-          {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
+        <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
       </header>
       <main className="flex-1 overflow-hidden">
         <Outlet />

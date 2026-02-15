@@ -1,6 +1,6 @@
 # Next Tasks
 
-- [x] Add light and dark mode toggle. Implement light mode if not supported already. Swith to using Geist Mono font. And fix the Run Query button style in dark mode - it always looks like it's disabled currently.
+- [x] Add light and dark mode toggle. Implement light mode if not supported already. Switch to using Inter font. And fix the Run Query button style in dark mode - it always looks like it's disabled currently.
 - [ ] If all text removed from search bar and return pressed: default to "\*", and execute the search
 - [ ] For Log details slide out: use a copy icon button, not button with "Copy" text. Also make the whole slide out panel a bit wider - 500px.
 - [ ] Below the "Raw JSON" field in the "Log Details" slide out, add a toggle to wrap text

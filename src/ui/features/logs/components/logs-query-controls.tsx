@@ -74,8 +74,11 @@ export function LogsQueryControls(props: {
       className="flex flex-wrap items-end gap-2 border-b border-border px-3 py-3"
     >
       <div className="min-w-[220px] flex-1">
-        <label className="mb-1 block text-xs text-muted-foreground">LogsQL</label>
+        <label htmlFor="logs-query" className="mb-1 block text-xs text-muted-foreground">
+          LogsQL
+        </label>
         <input
+          id="logs-query"
           value={queryText}
           onChange={(event) => setQueryText(event.currentTarget.value)}
           placeholder="*"
@@ -83,8 +86,11 @@ export function LogsQueryControls(props: {
         />
       </div>
       <div className="w-28">
-        <label className="mb-1 block text-xs text-muted-foreground">Range</label>
+        <label htmlFor="logs-range" className="mb-1 block text-xs text-muted-foreground">
+          Range
+        </label>
         <select
+          id="logs-range"
           value={range}
           onChange={(event) => setRange(event.currentTarget.value as LogsRange)}
           className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
@@ -100,8 +106,14 @@ export function LogsQueryControls(props: {
       {range === "absolute" ? (
         <>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Start</label>
+            <label
+              htmlFor="logs-absolute-start"
+              className="mb-1 block text-xs text-muted-foreground"
+            >
+              Start
+            </label>
             <input
+              id="logs-absolute-start"
               type="datetime-local"
               value={absoluteStart}
               onChange={(event) => setAbsoluteStart(event.currentTarget.value)}
@@ -109,8 +121,11 @@ export function LogsQueryControls(props: {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">End</label>
+            <label htmlFor="logs-absolute-end" className="mb-1 block text-xs text-muted-foreground">
+              End
+            </label>
             <input
+              id="logs-absolute-end"
               type="datetime-local"
               value={absoluteEnd}
               onChange={(event) => setAbsoluteEnd(event.currentTarget.value)}

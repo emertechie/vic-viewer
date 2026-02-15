@@ -14,8 +14,9 @@ description: Use this when the user asks you to implement the next task to be do
 - When the task is complete:
   - make sure to run any affected tests if needed (for example, some UI tweaks may not affect tests)
   - commit your work if you haven't already
-  - Then use the `refactor-pass` skill to examine and refactor the code if needed
+- Then YOU MUST use the `refactor-pass` skill to examine the code on this branch and apply any recommended refactors
 - After completing each task:
+  - confirm you ran a refactor pass
   - mark its checkbox as done (`[x]`)
   - notify the user
 - DO NOT automatically proceed with the next task unless the user explicitly asks you to
