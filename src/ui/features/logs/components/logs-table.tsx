@@ -32,6 +32,8 @@ export function LogsTable(props: {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const isAtBottomRef = React.useRef(true);
+  // Programmatic scroll-to-bottom during initial render can fire onScroll and
+  // immediately trigger paging. This guard ignores those synthetic events briefly.
   const suppressPagingUntilRef = React.useRef(0);
   const table = useReactTable({
     data: props.rows,
