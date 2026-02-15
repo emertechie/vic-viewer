@@ -1,62 +1,10 @@
 import * as React from "react";
-import { Copy } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CopyButton } from "@/components/copy-button";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useClipboard } from "@/hooks/use-clipboard";
 import type { LogRow } from "../api/types";
 
-const COPIED_TOOLTIP_DURATION_MS = 500;
 type CopyHandler = (value: string) => Promise<void> | void;
-
-function CopyFieldButton(props: {
-  label: string;
-  disabled: boolean;
-  onCopy: () => Promise<void> | void;
-}) {
-  const [showCopiedTooltip, setShowCopiedTooltip] = React.useState(false);
-  const hideTooltipTimerRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (hideTooltipTimerRef.current !== null) {
-        window.clearTimeout(hideTooltipTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleCopy = React.useCallback(async () => {
-    await props.onCopy();
-    setShowCopiedTooltip(true);
-
-    if (hideTooltipTimerRef.current !== null) {
-      window.clearTimeout(hideTooltipTimerRef.current);
-    }
-
-    hideTooltipTimerRef.current = window.setTimeout(() => {
-      setShowCopiedTooltip(false);
-      hideTooltipTimerRef.current = null;
-    }, COPIED_TOOLTIP_DURATION_MS);
-  }, [props.onCopy]);
-
-  return (
-    <Tooltip open={showCopiedTooltip}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          disabled={props.disabled}
-          onClick={handleCopy}
-          className="inline-flex h-5 w-5 items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-          aria-label={`Copy ${props.label}`}
-          title={`Copy ${props.label}`}
-        >
-          <Copy className="h-3 w-3" aria-hidden="true" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={6}>
-        Copied
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 function parseStreamLabels(stream: string | null): Array<{ key: string; value: string }> {
   if (!stream) {
@@ -93,7 +41,7 @@ function DetailRow(props: { label: string; value: string | null; onCopy?: CopyHa
     <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
       <span className="text-muted-foreground">{props.label}</span>
       <span className="break-all text-foreground">{displayValue}</span>
-      <CopyFieldButton
+      <CopyButton
         label={props.label}
         disabled={!canCopy || !props.onCopy}
         onCopy={handleCopyValue}
