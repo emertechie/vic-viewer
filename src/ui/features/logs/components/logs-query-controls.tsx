@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Play } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
 import { buildRelativeWindow } from "../state/search";
 
@@ -199,12 +199,14 @@ export function LogsQueryControls(props: {
         {props.search.live === "1" ? "Live On" : "Live Off"}
       </button>
       {hasUnappliedChanges ? (
-        <Tooltip>
-          <TooltipTrigger asChild>{runQueryButton}</TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
-            Run query to apply changes
-          </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>{runQueryButton}</TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              Run query to apply changes
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       ) : (
         runQueryButton
       )}
