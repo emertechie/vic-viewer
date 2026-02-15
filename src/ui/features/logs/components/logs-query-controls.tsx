@@ -16,6 +16,11 @@ function fromLocalDateTimeValue(localDateTime: string): string {
   return new Date(localDateTime).toISOString();
 }
 
+function normalizeQuery(value: string): string {
+  const trimmed = value.trim();
+  return trimmed || "*";
+}
+
 export function LogsQueryControls(props: {
   search: LogsSearch;
   onApplySearch: (nextSearch: LogsSearch) => void;
@@ -27,6 +32,32 @@ export function LogsQueryControls(props: {
     toLocalDateTimeValue(props.search.start),
   );
   const [absoluteEnd, setAbsoluteEnd] = React.useState(toLocalDateTimeValue(props.search.end));
+  const appliedAbsoluteStart = toLocalDateTimeValue(props.search.start);
+  const appliedAbsoluteEnd = toLocalDateTimeValue(props.search.end);
+  const hasUnappliedChanges = React.useMemo(() => {
+    if (normalizeQuery(queryText) !== normalizeQuery(props.search.q)) {
+      return true;
+    }
+
+    if (range !== props.search.range) {
+      return true;
+    }
+
+    if (range === "absolute") {
+      return absoluteStart !== appliedAbsoluteStart || absoluteEnd !== appliedAbsoluteEnd;
+    }
+
+    return false;
+  }, [
+    absoluteEnd,
+    absoluteStart,
+    appliedAbsoluteEnd,
+    appliedAbsoluteStart,
+    props.search.q,
+    props.search.range,
+    queryText,
+    range,
+  ]);
 
   React.useEffect(() => {
     setQueryText(props.search.q);
@@ -40,7 +71,7 @@ export function LogsQueryControls(props: {
       event.preventDefault();
 
       const trimmedQuery = queryText.trim();
-      const nextQuery = trimmedQuery || "*";
+      const nextQuery = normalizeQuery(queryText);
       if (!trimmedQuery && queryText !== "*") {
         setQueryText("*");
       }
@@ -149,11 +180,17 @@ export function LogsQueryControls(props: {
       >
         {props.search.live === "1" ? "Live On" : "Live Off"}
       </button>
+      {hasUnappliedChanges ? (
+        <p className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+          Unapplied changes
+        </p>
+      ) : null}
       <button
         type="submit"
         className="h-9 rounded-md border border-primary/70 bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
       >
-        Run Query
+        {hasUnappliedChanges ? "Apply Changes" : "Run Query"}
       </button>
     </form>
   );
