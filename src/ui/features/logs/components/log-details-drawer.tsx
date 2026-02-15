@@ -160,7 +160,7 @@ export function LogDetailsDrawer(props: {
                 >
                   {JSON.stringify(props.row.raw, null, 2)}
                 </pre>
-                <div className="mt-2 flex justify-end">
+                <div className="mb-2 mt-2 flex justify-end">
                   <label
                     htmlFor="wrap-raw-json"
                     className="inline-flex items-center gap-2 text-xs text-muted-foreground"
