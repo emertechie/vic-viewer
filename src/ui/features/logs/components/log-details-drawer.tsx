@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useClipboard } from "@/hooks/use-clipboard";
 import type { LogRow } from "../api/types";
 
-const COPIED_TOOLTIP_DURATION_MS = 900;
+const COPIED_TOOLTIP_DURATION_MS = 500;
 type CopyHandler = (value: string) => Promise<void> | void;
 
 function CopyFieldButton(props: {
