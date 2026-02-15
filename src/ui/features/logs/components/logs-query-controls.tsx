@@ -132,7 +132,7 @@ export function LogsQueryControls(props: {
       </button>
       <button
         type="submit"
-        className="h-9 rounded-md border border-primary/30 bg-primary/20 px-3 text-sm text-primary-foreground"
+        className="h-9 rounded-md border border-primary/70 bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
       >
         Run Query
       </button>
