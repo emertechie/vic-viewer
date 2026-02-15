@@ -1,7 +1,62 @@
 import * as React from "react";
 import { Copy } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useClipboard } from "@/hooks/use-clipboard";
 import type { LogRow } from "../api/types";
+
+const COPIED_TOOLTIP_DURATION_MS = 900;
+type CopyHandler = (value: string) => Promise<void> | void;
+
+function CopyFieldButton(props: {
+  label: string;
+  disabled: boolean;
+  onCopy: () => Promise<void> | void;
+}) {
+  const [showCopiedTooltip, setShowCopiedTooltip] = React.useState(false);
+  const hideTooltipTimerRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (hideTooltipTimerRef.current !== null) {
+        window.clearTimeout(hideTooltipTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = React.useCallback(async () => {
+    await props.onCopy();
+    setShowCopiedTooltip(true);
+
+    if (hideTooltipTimerRef.current !== null) {
+      window.clearTimeout(hideTooltipTimerRef.current);
+    }
+
+    hideTooltipTimerRef.current = window.setTimeout(() => {
+      setShowCopiedTooltip(false);
+      hideTooltipTimerRef.current = null;
+    }, COPIED_TOOLTIP_DURATION_MS);
+  }, [props.onCopy]);
+
+  return (
+    <Tooltip open={showCopiedTooltip}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          disabled={props.disabled}
+          onClick={handleCopy}
+          className="inline-flex h-5 w-5 items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          aria-label={`Copy ${props.label}`}
+          title={`Copy ${props.label}`}
+        >
+          <Copy className="h-3 w-3" aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" sideOffset={6}>
+        Copied
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function parseStreamLabels(stream: string | null): Array<{ key: string; value: string }> {
   if (!stream) {
@@ -22,81 +77,29 @@ function parseStreamLabels(stream: string | null): Array<{ key: string; value: s
   return labels;
 }
 
-function DetailRow(props: {
-  label: string;
-  value: string | null;
-  onCopy?: (value: string) => Promise<void> | void;
-}) {
+function DetailRow(props: { label: string; value: string | null; onCopy?: CopyHandler }) {
   const displayValue = props.value ?? "—";
   const canCopy = Boolean(props.value);
-  const [showCopiedTooltip, setShowCopiedTooltip] = React.useState(false);
-  const hideTooltipTimerRef = React.useRef<number | null>(null);
 
-  React.useEffect(() => {
-    return () => {
-      if (hideTooltipTimerRef.current !== null) {
-        window.clearTimeout(hideTooltipTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleCopy = React.useCallback(async () => {
+  const handleCopyValue = React.useCallback(async () => {
     if (!props.value || !props.onCopy) {
       return;
     }
 
     await props.onCopy(props.value);
-    setShowCopiedTooltip(true);
-
-    if (hideTooltipTimerRef.current !== null) {
-      window.clearTimeout(hideTooltipTimerRef.current);
-    }
-
-    hideTooltipTimerRef.current = window.setTimeout(() => {
-      setShowCopiedTooltip(false);
-      hideTooltipTimerRef.current = null;
-    }, 900);
   }, [props.onCopy, props.value]);
 
   return (
     <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
       <span className="text-muted-foreground">{props.label}</span>
       <span className="break-all text-foreground">{displayValue}</span>
-      <Tooltip open={showCopiedTooltip}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            disabled={!canCopy || !props.onCopy}
-            onClick={handleCopy}
-            className="inline-flex h-5 w-5 items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-            aria-label={`Copy ${props.label}`}
-            title={`Copy ${props.label}`}
-          >
-            <Copy className="h-3 w-3" aria-hidden="true" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={6}>
-          Copied
-        </TooltipContent>
-      </Tooltip>
+      <CopyFieldButton
+        label={props.label}
+        disabled={!canCopy || !props.onCopy}
+        onCopy={handleCopyValue}
+      />
     </div>
   );
-}
-
-async function copyText(value: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = value;
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
 }
 
 export function LogDetailsDrawer(props: {
@@ -105,16 +108,14 @@ export function LogDetailsDrawer(props: {
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
 }) {
+  const { copyToClipboard } = useClipboard();
   const streamLabels = React.useMemo(
     () => parseStreamLabels(props.row?.stream ?? null),
     [props.row?.stream],
   );
 
-  const handleCopy = React.useCallback(async (value: string) => {
-    await copyText(value);
-  }, []);
-
   const isOpen = Boolean(props.selectedKey);
+  const traceId = props.row?.traceId ?? null;
 
   return (
     <TooltipProvider>
@@ -150,35 +151,35 @@ export function LogDetailsDrawer(props: {
                 <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Core
                 </h3>
-                <DetailRow label="Time" value={props.row.time} onCopy={handleCopy} />
-                <DetailRow label="Severity" value={props.row.severity} onCopy={handleCopy} />
-                <DetailRow label="Service" value={props.row.serviceName} onCopy={handleCopy} />
-                <DetailRow label="Message" value={props.row.message} onCopy={handleCopy} />
-                <DetailRow label="StreamId" value={props.row.streamId} onCopy={handleCopy} />
+                <DetailRow label="Time" value={props.row.time} onCopy={copyToClipboard} />
+                <DetailRow label="Severity" value={props.row.severity} onCopy={copyToClipboard} />
+                <DetailRow label="Service" value={props.row.serviceName} onCopy={copyToClipboard} />
+                <DetailRow label="Message" value={props.row.message} onCopy={copyToClipboard} />
+                <DetailRow label="StreamId" value={props.row.streamId} onCopy={copyToClipboard} />
               </section>
               <section>
                 <div className="mb-1 flex items-center justify-between">
                   <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Trace / Span
                   </h3>
-                  {props.row.traceId ? (
+                  {traceId ? (
                     <button
                       type="button"
-                      onClick={() => props.onOpenTrace(props.row!.traceId!)}
+                      onClick={() => props.onOpenTrace(traceId)}
                       className="rounded border border-primary/40 px-2 py-0.5 text-[10px] text-primary"
                     >
                       Open Trace
                     </button>
                   ) : null}
                 </div>
-                <DetailRow label="TraceId" value={props.row.traceId} onCopy={handleCopy} />
-                <DetailRow label="SpanId" value={props.row.spanId} onCopy={handleCopy} />
+                <DetailRow label="TraceId" value={props.row.traceId} onCopy={copyToClipboard} />
+                <DetailRow label="SpanId" value={props.row.spanId} onCopy={copyToClipboard} />
                 <DetailRow
                   label="RequestId"
                   value={
                     typeof props.row.raw.RequestId === "string" ? props.row.raw.RequestId : null
                   }
-                  onCopy={handleCopy}
+                  onCopy={copyToClipboard}
                 />
               </section>
               <section>
@@ -193,7 +194,7 @@ export function LogDetailsDrawer(props: {
                       key={label.key}
                       label={label.key}
                       value={label.value}
-                      onCopy={handleCopy}
+                      onCopy={copyToClipboard}
                     />
                   ))
                 )}
