@@ -114,7 +114,7 @@ export function LogsQueryControls(props: {
       Run Query
       {hasUnappliedChanges ? (
         <span
-          className="absolute right-1 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-card"
+          className="absolute right-1 top-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 ring-2 ring-card"
           aria-hidden
         />
       ) : null}
@@ -199,7 +199,7 @@ export function LogsQueryControls(props: {
         {props.search.live === "1" ? "Live On" : "Live Off"}
       </button>
       {hasUnappliedChanges ? (
-        <TooltipProvider>
+        <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>{runQueryButton}</TooltipTrigger>
             <TooltipContent side="top" sideOffset={6}>
