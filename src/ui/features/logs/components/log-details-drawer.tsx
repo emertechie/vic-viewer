@@ -1,0 +1,191 @@
+import * as React from "react";
+import type { LogRow } from "../api/types";
+
+function parseStreamLabels(stream: string | null): Array<{ key: string; value: string }> {
+  if (!stream) {
+    return [];
+  }
+
+  const labels: Array<{ key: string; value: string }> = [];
+  const regex = /([A-Za-z0-9_.-]+)="([^"]*)"/g;
+  let match: RegExpExecArray | null = regex.exec(stream);
+  while (match) {
+    labels.push({
+      key: match[1] ?? "",
+      value: match[2] ?? "",
+    });
+    match = regex.exec(stream);
+  }
+
+  return labels;
+}
+
+function DetailRow(props: {
+  label: string;
+  value: string | null;
+  onCopy?: (value: string) => void;
+}) {
+  const displayValue = props.value ?? "—";
+  const canCopy = Boolean(props.value);
+
+  return (
+    <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
+      <span className="text-muted-foreground">{props.label}</span>
+      <span className="break-all text-foreground">{displayValue}</span>
+      <button
+        type="button"
+        disabled={!canCopy || !props.onCopy}
+        onClick={() => {
+          if (props.value && props.onCopy) {
+            props.onCopy(props.value);
+          }
+        }}
+        className="rounded border border-input px-1.5 py-0.5 text-[10px] text-muted-foreground disabled:opacity-50"
+      >
+        Copy
+      </button>
+    </div>
+  );
+}
+
+async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
+export function LogDetailsDrawer(props: {
+  row: LogRow | null;
+  selectedKey?: string;
+  onClose: () => void;
+  onOpenTrace: (traceId: string) => void;
+}) {
+  const [copiedMessage, setCopiedMessage] = React.useState<string | null>(null);
+  const streamLabels = React.useMemo(
+    () => parseStreamLabels(props.row?.stream ?? null),
+    [props.row?.stream],
+  );
+
+  const handleCopy = React.useCallback(async (value: string) => {
+    await copyText(value);
+    setCopiedMessage("Copied");
+    window.setTimeout(() => setCopiedMessage(null), 900);
+  }, []);
+
+  const isOpen = Boolean(props.selectedKey);
+
+  return (
+    <>
+      {isOpen ? (
+        <button
+          type="button"
+          className="absolute inset-0 z-10 bg-black/20"
+          onClick={props.onClose}
+        />
+      ) : null}
+      <aside
+        className={`absolute inset-y-0 right-0 z-20 flex w-[430px] max-w-[92vw] flex-col border-l border-border bg-card transition-transform duration-150 ${
+          isOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <header className="flex items-center justify-between border-b border-border px-3 py-2">
+          <div>
+            <h2 className="text-sm font-semibold">Log Details</h2>
+            <p className="text-[11px] text-muted-foreground">
+              {copiedMessage ?? "Select a log row to inspect fields"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={props.onClose}
+            className="rounded border border-input px-2 py-1 text-xs"
+          >
+            Close
+          </button>
+        </header>
+        <div className="flex-1 overflow-auto px-3 py-2">
+          {props.row ? (
+            <div className="space-y-4">
+              <section>
+                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Core
+                </h3>
+                <DetailRow label="Time" value={props.row.time} onCopy={handleCopy} />
+                <DetailRow label="Severity" value={props.row.severity} onCopy={handleCopy} />
+                <DetailRow label="Service" value={props.row.serviceName} onCopy={handleCopy} />
+                <DetailRow label="Message" value={props.row.message} onCopy={handleCopy} />
+                <DetailRow label="StreamId" value={props.row.streamId} onCopy={handleCopy} />
+              </section>
+              <section>
+                <div className="mb-1 flex items-center justify-between">
+                  <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Trace / Span
+                  </h3>
+                  {props.row.traceId ? (
+                    <button
+                      type="button"
+                      onClick={() => props.onOpenTrace(props.row!.traceId!)}
+                      className="rounded border border-primary/40 px-2 py-0.5 text-[10px] text-primary"
+                    >
+                      Open Trace
+                    </button>
+                  ) : null}
+                </div>
+                <DetailRow label="TraceId" value={props.row.traceId} onCopy={handleCopy} />
+                <DetailRow label="SpanId" value={props.row.spanId} onCopy={handleCopy} />
+                <DetailRow
+                  label="RequestId"
+                  value={
+                    typeof props.row.raw.RequestId === "string" ? props.row.raw.RequestId : null
+                  }
+                  onCopy={handleCopy}
+                />
+              </section>
+              <section>
+                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Stream Labels
+                </h3>
+                {streamLabels.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No parsed stream labels.</p>
+                ) : (
+                  streamLabels.map((label) => (
+                    <DetailRow
+                      key={label.key}
+                      label={label.key}
+                      value={label.value}
+                      onCopy={handleCopy}
+                    />
+                  ))
+                )}
+              </section>
+              <section>
+                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Raw JSON
+                </h3>
+                <pre className="max-h-72 overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px]">
+                  {JSON.stringify(props.row.raw, null, 2)}
+                </pre>
+              </section>
+            </div>
+          ) : (
+            <div className="rounded border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+              {props.selectedKey
+                ? "Selected log is no longer loaded in the current window."
+                : "No log selected."}
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}

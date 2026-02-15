@@ -20,9 +20,12 @@ function RootLayout() {
           >
             Logs
           </Link>
-          <span className="cursor-not-allowed text-sm text-muted-foreground/50" title="Coming soon">
+          <Link
+            to="/traces"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground [&.active]:text-foreground"
+          >
             Traces
-          </span>
+          </Link>
         </nav>
       </header>
       <main className="flex-1 overflow-hidden">

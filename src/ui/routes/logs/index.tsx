@@ -1,5 +1,7 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { LogRow } from "@/features/logs/api/types";
+import { LogDetailsDrawer } from "@/features/logs/components/log-details-drawer";
 import { LogsQueryControls } from "@/features/logs/components/logs-query-controls";
 import { LogsTable } from "@/features/logs/components/logs-table";
 import { useLogsViewer } from "@/features/logs/hooks/use-logs-viewer";
@@ -18,11 +20,18 @@ function LogsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const viewer = useLogsViewer(search);
+  const selectedRow = React.useMemo(
+    () => viewer.rows.find((row) => row.key === search.selected) ?? null,
+    [search.selected, viewer.rows],
+  );
 
   const onApplySearch = React.useCallback(
     (nextSearch: LogsSearch) => {
       navigate({
-        search: () => nextSearch,
+        search: () => ({
+          ...nextSearch,
+          selected: undefined,
+        }),
       });
     },
     [navigate],
@@ -61,8 +70,43 @@ function LogsPage() {
     };
   }, [navigate, search]);
 
+  const onSelectRow = React.useCallback(
+    (row: LogRow) => {
+      navigate({
+        search: (previous) => ({
+          ...previous,
+          selected: row.key,
+        }),
+        replace: true,
+      });
+    },
+    [navigate],
+  );
+
+  const onCloseDrawer = React.useCallback(() => {
+    navigate({
+      search: (previous) => ({
+        ...previous,
+        selected: undefined,
+      }),
+      replace: true,
+    });
+  }, [navigate]);
+
+  const onOpenTrace = React.useCallback(
+    (traceId: string) => {
+      navigate({
+        to: "/traces",
+        search: () => ({
+          traceId,
+        }),
+      });
+    },
+    [navigate],
+  );
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <LogsQueryControls
         search={search}
         onApplySearch={onApplySearch}
@@ -72,6 +116,7 @@ function LogsPage() {
         <LogsTable
           rows={viewer.rows}
           pageInfo={viewer.pageInfo}
+          selectedRowKey={search.selected}
           loadingOlder={viewer.loadingOlder}
           loadingNewer={viewer.loadingNewer}
           isLoadingInitial={viewer.isLoadingInitial}
@@ -79,8 +124,15 @@ function LogsPage() {
           errorMessage={viewer.errorMessage}
           onLoadOlder={viewer.loadOlder}
           onLoadNewer={viewer.loadNewer}
+          onSelectRow={onSelectRow}
         />
       </div>
+      <LogDetailsDrawer
+        selectedKey={search.selected}
+        row={selectedRow}
+        onClose={onCloseDrawer}
+        onOpenTrace={onOpenTrace}
+      />
     </div>
   );
 }

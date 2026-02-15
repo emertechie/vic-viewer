@@ -19,6 +19,7 @@ const SCROLL_THRESHOLD_PX = 180;
 export function LogsTable(props: {
   rows: LogRow[];
   pageInfo: LogsPageInfo | null;
+  selectedRowKey?: string;
   loadingOlder: boolean;
   loadingNewer: boolean;
   isLoadingInitial: boolean;
@@ -26,6 +27,7 @@ export function LogsTable(props: {
   errorMessage: string | null;
   onLoadOlder: () => Promise<void>;
   onLoadNewer: () => Promise<void>;
+  onSelectRow?: (row: LogRow) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -141,7 +143,10 @@ export function LogsTable(props: {
             return (
               <div
                 key={row.id}
-                className="absolute left-0 grid w-full grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border/60 px-3 text-xs"
+                onClick={() => props.onSelectRow?.(row.original)}
+                className={`absolute left-0 grid w-full grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border/60 px-3 text-xs ${
+                  props.selectedRowKey === row.id ? "bg-primary/10" : "hover:bg-muted/40"
+                } ${props.onSelectRow ? "cursor-pointer" : ""}`}
                 style={{
                   top: 0,
                   transform: `translateY(${virtualRow.start}px)`,
