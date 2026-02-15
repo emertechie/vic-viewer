@@ -1,4 +1,6 @@
 import * as React from "react";
+import { Copy } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LogRow } from "../api/types";
 
 function parseStreamLabels(stream: string | null): Array<{ key: string; value: string }> {
@@ -23,27 +25,60 @@ function parseStreamLabels(stream: string | null): Array<{ key: string; value: s
 function DetailRow(props: {
   label: string;
   value: string | null;
-  onCopy?: (value: string) => void;
+  onCopy?: (value: string) => Promise<void> | void;
 }) {
   const displayValue = props.value ?? "—";
   const canCopy = Boolean(props.value);
+  const [showCopiedTooltip, setShowCopiedTooltip] = React.useState(false);
+  const hideTooltipTimerRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (hideTooltipTimerRef.current !== null) {
+        window.clearTimeout(hideTooltipTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = React.useCallback(async () => {
+    if (!props.value || !props.onCopy) {
+      return;
+    }
+
+    await props.onCopy(props.value);
+    setShowCopiedTooltip(true);
+
+    if (hideTooltipTimerRef.current !== null) {
+      window.clearTimeout(hideTooltipTimerRef.current);
+    }
+
+    hideTooltipTimerRef.current = window.setTimeout(() => {
+      setShowCopiedTooltip(false);
+      hideTooltipTimerRef.current = null;
+    }, 900);
+  }, [props.onCopy, props.value]);
 
   return (
     <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
       <span className="text-muted-foreground">{props.label}</span>
       <span className="break-all text-foreground">{displayValue}</span>
-      <button
-        type="button"
-        disabled={!canCopy || !props.onCopy}
-        onClick={() => {
-          if (props.value && props.onCopy) {
-            props.onCopy(props.value);
-          }
-        }}
-        className="rounded border border-input px-1.5 py-0.5 text-[10px] text-muted-foreground disabled:opacity-50"
-      >
-        Copy
-      </button>
+      <Tooltip open={showCopiedTooltip}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            disabled={!canCopy || !props.onCopy}
+            onClick={handleCopy}
+            className="inline-flex h-5 w-5 items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            aria-label={`Copy ${props.label}`}
+            title={`Copy ${props.label}`}
+          >
+            <Copy className="h-3 w-3" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left" sideOffset={6}>
+          Copied
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -70,7 +105,6 @@ export function LogDetailsDrawer(props: {
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
 }) {
-  const [copiedMessage, setCopiedMessage] = React.useState<string | null>(null);
   const streamLabels = React.useMemo(
     () => parseStreamLabels(props.row?.stream ?? null),
     [props.row?.stream],
@@ -78,14 +112,12 @@ export function LogDetailsDrawer(props: {
 
   const handleCopy = React.useCallback(async (value: string) => {
     await copyText(value);
-    setCopiedMessage("Copied");
-    window.setTimeout(() => setCopiedMessage(null), 900);
   }, []);
 
   const isOpen = Boolean(props.selectedKey);
 
   return (
-    <>
+    <TooltipProvider>
       {isOpen ? (
         <button
           type="button"
@@ -94,16 +126,14 @@ export function LogDetailsDrawer(props: {
         />
       ) : null}
       <aside
-        className={`absolute inset-y-0 right-0 z-20 flex w-[430px] max-w-[92vw] flex-col border-l border-border bg-card transition-transform duration-150 ${
+        className={`absolute inset-y-0 right-0 z-20 flex w-[500px] max-w-[92vw] flex-col border-l border-border bg-card transition-transform duration-150 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <header className="flex items-center justify-between border-b border-border px-3 py-2">
           <div>
             <h2 className="text-sm font-semibold">Log Details</h2>
-            <p className="text-[11px] text-muted-foreground">
-              {copiedMessage ?? "Select a log row to inspect fields"}
-            </p>
+            <p className="text-[11px] text-muted-foreground">Select a log row to inspect fields</p>
           </div>
           <button
             type="button"
@@ -186,6 +216,6 @@ export function LogDetailsDrawer(props: {
           )}
         </div>
       </aside>
-    </>
+    </TooltipProvider>
   );
 }
