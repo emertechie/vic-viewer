@@ -32,6 +32,7 @@ export function LogsTable(props: {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const isAtBottomRef = React.useRef(true);
+  const suppressPagingUntilRef = React.useRef(0);
   const table = useReactTable({
     data: props.rows,
     columns,
@@ -86,6 +87,10 @@ export function LogsTable(props: {
       return;
     }
 
+    if (Date.now() < suppressPagingUntilRef.current) {
+      return;
+    }
+
     const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
     isAtBottomRef.current = distanceToBottom < 24;
 
@@ -104,6 +109,7 @@ export function LogsTable(props: {
       return;
     }
 
+    suppressPagingUntilRef.current = Date.now() + 400;
     element.scrollTop = element.scrollHeight;
   }, [props.rows.length]);
 
