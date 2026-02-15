@@ -1,4 +1,8 @@
-This project is for a modern, fast React app to view logs, traces (and eventually metrics) that are stored in the Victoria Metrics stack. For more context, see [PROJECT_OVERVIEW](./PROJECT_OVERVIEW.md).
+This project is for a modern, fast React app to view logs, traces (and eventually metrics) that are stored in the Victoria Metrics stack.
+
+For more context, make sure you read:
+- [PROJECT_OVERVIEW](./PROJECT_OVERVIEW.md)
+- Original [PLAN doc](./LTM_LOG_VIEWER_PLAN.md)
 
 # General
 
