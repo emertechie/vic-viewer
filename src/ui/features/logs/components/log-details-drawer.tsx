@@ -57,6 +57,7 @@ export function LogDetailsDrawer(props: {
   onOpenTrace: (traceId: string) => void;
 }) {
   const { copyToClipboard } = useClipboard();
+  const [wrapRawJson, setWrapRawJson] = React.useState(false);
   const streamLabels = React.useMemo(
     () => parseStreamLabels(props.row?.stream ?? null),
     [props.row?.stream],
@@ -151,9 +152,22 @@ export function LogDetailsDrawer(props: {
                 <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Raw JSON
                 </h3>
-                <pre className="max-h-72 overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px]">
+                <pre
+                  className={`max-h-72 overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px] ${
+                    wrapRawJson ? "whitespace-pre-wrap break-all" : "whitespace-pre"
+                  }`}
+                >
                   {JSON.stringify(props.row.raw, null, 2)}
                 </pre>
+                <label className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={wrapRawJson}
+                    onChange={(event) => setWrapRawJson(event.currentTarget.checked)}
+                    className="h-3.5 w-3.5 rounded border-input"
+                  />
+                  Wrap text
+                </label>
               </section>
             </div>
           ) : (
