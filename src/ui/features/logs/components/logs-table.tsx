@@ -327,7 +327,7 @@ export function LogsTable(props: {
         </span>
       </div>
       {fakeSequenceMode && pagingNotice ? (
-        <div className="pointer-events-none absolute bottom-12 right-3 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200 shadow-sm">
+        <div className="pointer-events-none absolute bottom-14 right-4 rounded-lg border border-sky-300 bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-lg">
           {pagingNotice}
         </div>
       ) : null}
