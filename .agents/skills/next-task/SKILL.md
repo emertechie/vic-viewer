@@ -3,7 +3,7 @@ name: next-task
 description: Use this when the user asks you to implement the next task to be done.
 ---
 
-## Instructions
+# Instructions
 
 - Find the next incomplete task to work on in the `NEXT_TASKS.md` file in the project root.
 - Make sure you understand the task fully before beginning. Reasarch things by using the context7 MCP server to read documents and/or perform web searches as needed. If there is anything unclear or unspecified, or that the user may need to make a decision on, prompt the user before continuing.
@@ -17,6 +17,7 @@ description: Use this when the user asks you to implement the next task to be do
 - Then YOU MUST use the `refactor-pass` skill to examine the code on this branch and apply any recommended refactors
 - After completing each task:
   - confirm you ran a refactor pass
+  - confirm all code has been committed: `git status --short` must be clean (or only known unrelated files)
   - mark its checkbox as done (`[x]`)
   - notify the user
 - DO NOT automatically proceed with the next task unless the user explicitly asks you to
