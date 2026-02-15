@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Play } from "lucide-react";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
 import { buildRelativeWindow } from "../state/search";
 
@@ -180,17 +181,16 @@ export function LogsQueryControls(props: {
       >
         {props.search.live === "1" ? "Live On" : "Live Off"}
       </button>
-      {hasUnappliedChanges ? (
-        <p className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 text-xs font-medium text-amber-700 dark:text-amber-300">
-          <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
-          Unapplied changes
-        </p>
-      ) : null}
       <button
         type="submit"
-        className="h-9 rounded-md border border-primary/70 bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
+          hasUnappliedChanges
+            ? "border-primary/70 bg-primary text-primary-foreground hover:bg-primary/90"
+            : "border-input bg-card text-foreground hover:bg-accent"
+        }`}
       >
-        {hasUnappliedChanges ? "Apply Changes" : "Run Query"}
+        <Play className="h-3.5 w-3.5" aria-hidden />
+        Execute Query
       </button>
     </form>
   );
