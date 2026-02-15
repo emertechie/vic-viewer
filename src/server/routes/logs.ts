@@ -118,6 +118,7 @@ export function registerLogsRoutes(
       start: window.start,
       end: window.end,
       limit: normalizedRequest.limit,
+      cursorDirection: cursor?.dir,
     });
 
     const rows = applyCursorFilter(

@@ -224,23 +224,42 @@ export function createFakeVictoriaLogsClient(options: {
         return [];
       }
 
-      const rows = generateRecords({
+      const sortedRecords = generateRecords({
         query: request.query,
         startMs,
         endMs,
         nowMs: Date.now(),
         profile: options.profile,
         seed: options.seed,
-      })
-        .sort((left, right) => {
-          if (left.timestampMs !== right.timestampMs) {
-            return right.timestampMs - left.timestampMs;
-          }
+      }).sort((left, right) => {
+        if (left.timestampMs !== right.timestampMs) {
+          return right.timestampMs - left.timestampMs;
+        }
 
-          return right.sequence - left.sequence;
-        })
-        .slice(0, request.limit)
-        .map((record) => record.raw);
+        return right.sequence - left.sequence;
+      });
+
+      const rows = (() => {
+        if (sortedRecords.length <= request.limit) {
+          return sortedRecords;
+        }
+
+        if (request.cursorDirection === "older") {
+          return sortedRecords.slice(0, request.limit);
+        }
+
+        if (request.cursorDirection === "newer") {
+          return sortedRecords.slice(sortedRecords.length - request.limit);
+        }
+
+        const historicalWindow = endMs < Date.now() - 60_000;
+        if (historicalWindow) {
+          const middleStart = Math.floor((sortedRecords.length - request.limit) / 2);
+          return sortedRecords.slice(middleStart, middleStart + request.limit);
+        }
+
+        return sortedRecords.slice(0, request.limit);
+      })().map((record) => record.raw);
 
       return rows;
     },
