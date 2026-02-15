@@ -1,8 +1,10 @@
 import * as React from "react";
-import { Play } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
 import { buildRelativeWindow } from "../state/search";
+
+const WILDCARD_QUERY = "*";
 
 function toLocalDateTimeValue(isoTimestamp: string): string {
   const date = new Date(isoTimestamp);
@@ -20,7 +22,7 @@ function fromLocalDateTimeValue(localDateTime: string): string {
 
 function normalizeQuery(value: string): string {
   const trimmed = value.trim();
-  return trimmed || "*";
+  return trimmed || WILDCARD_QUERY;
 }
 
 export function LogsQueryControls(props: {
@@ -74,8 +76,8 @@ export function LogsQueryControls(props: {
 
       const trimmedQuery = queryText.trim();
       const nextQuery = normalizeQuery(queryText);
-      if (!trimmedQuery && queryText !== "*") {
-        setQueryText("*");
+      if (!trimmedQuery && queryText !== WILDCARD_QUERY) {
+        setQueryText(WILDCARD_QUERY);
       }
 
       if (range === "absolute") {
@@ -105,6 +107,10 @@ export function LogsQueryControls(props: {
     [absoluteEnd, absoluteStart, props, queryText, range],
   );
 
+  const clearQueryToWildcard = React.useCallback(() => {
+    setQueryText(WILDCARD_QUERY);
+  }, []);
+
   const runQueryButton = (
     <button
       type="submit"
@@ -130,13 +136,23 @@ export function LogsQueryControls(props: {
         <label htmlFor="logs-query" className="mb-1 block text-xs text-muted-foreground">
           LogsQL
         </label>
-        <input
-          id="logs-query"
-          value={queryText}
-          onChange={(event) => setQueryText(event.currentTarget.value)}
-          placeholder="*"
-          className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
-        />
+        <div className="relative">
+          <input
+            id="logs-query"
+            value={queryText}
+            onChange={(event) => setQueryText(event.currentTarget.value)}
+            placeholder={WILDCARD_QUERY}
+            className="h-9 w-full rounded-md border border-input bg-card pl-3 pr-9 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
+          />
+          <button
+            type="button"
+            onClick={clearQueryToWildcard}
+            aria-label='Clear query to "*"'
+            className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
       <div className="w-28">
         <label htmlFor="logs-range" className="mb-1 block text-xs text-muted-foreground">
