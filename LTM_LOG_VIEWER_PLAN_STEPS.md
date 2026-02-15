@@ -17,12 +17,12 @@ Scope is limited to Milestone 0, Milestone 1, and Milestone 2 from `LTM_LOG_VIEW
 
 ### Step 1: Add backend dependencies and scripts
 
-- [ ] Add required packages for Fastify, Drizzle, SQLite, and Zod.
-- [ ] Add scripts for:
+- [x] Add required packages for Fastify, Drizzle, SQLite, and Zod.
+- [x] Add scripts for:
   - API dev run
   - DB migration generate/apply
   - combined UI+API local dev
-- [ ] Update lockfile.
+- [x] Update lockfile.
 
 Done when:
 
@@ -35,9 +35,9 @@ Verify:
 
 ### Step 2: Create backend app bootstrap and health route
 
-- [ ] Add server entrypoint and Fastify app factory.
-- [ ] Add `GET /api/health` route returning service and DB readiness status.
-- [ ] Add centralized error handler and request logging baseline.
+- [x] Add server entrypoint and Fastify app factory.
+- [x] Add `GET /api/health` route returning service and DB readiness status.
+- [x] Add centralized error handler and request logging baseline.
 
 Done when:
 
@@ -50,9 +50,9 @@ Verify:
 
 ### Step 3: Add Drizzle + SQLite setup
 
-- [ ] Create Drizzle schema for logs-view settings singleton.
-- [ ] Add DB client/bootstrap module.
-- [ ] Configure Drizzle migration output directory.
+- [x] Create Drizzle schema for logs-view settings singleton.
+- [x] Add DB client/bootstrap module.
+- [x] Configure Drizzle migration output directory.
 
 Done when:
 
@@ -65,9 +65,9 @@ Verify:
 
 ### Step 4: Create first migration and DB initialization flow
 
-- [ ] Generate initial migration for settings table.
-- [ ] Add startup init that ensures schema is applied.
-- [ ] Upsert default singleton settings row if absent.
+- [x] Generate initial migration for settings table.
+- [x] Add startup init that ensures schema is applied.
+- [x] Upsert default singleton settings row if absent.
 
 Done when:
 
@@ -80,11 +80,11 @@ Verify:
 
 ### Step 5: Add shared Zod schemas for API contracts
 
-- [ ] Create shared schema module for:
+- [x] Create shared schema module for:
   - settings payloads
   - logs query payload (including cursor field)
   - common error response shape
-- [ ] Ensure request parsing and response typing derive from Zod schemas.
+- [x] Ensure request parsing and response typing derive from Zod schemas.
 
 Done when:
 
@@ -97,9 +97,9 @@ Verify:
 
 ### Step 6: Implement settings endpoints
 
-- [ ] Add `GET /api/settings/logs-view`.
-- [ ] Add `PUT /api/settings/logs-view` with Zod validation.
-- [ ] Persist via Drizzle to singleton settings row.
+- [x] Add `GET /api/settings/logs-view`.
+- [x] Add `PUT /api/settings/logs-view` with Zod validation.
+- [x] Persist via Drizzle to singleton settings row.
 
 Done when:
 
@@ -112,9 +112,9 @@ Verify:
 
 ### Step 7: Add VicStack server config and client scaffolding
 
-- [ ] Add typed config for VictoriaLogs/Traces/Metrics base URLs.
-- [ ] Add VictoriaLogs client module in server layer.
-- [ ] Add timeout/cancellation and upstream error mapping scaffolding.
+- [x] Add typed config for VictoriaLogs/Traces/Metrics base URLs.
+- [x] Add VictoriaLogs client module in server layer.
+- [x] Add timeout/cancellation and upstream error mapping scaffolding.
 
 Done when:
 
@@ -127,10 +127,10 @@ Verify:
 
 ### Step 8: Milestone 0 close-out checks
 
-- [ ] Add or update basic integration tests for:
+- [x] Add or update basic integration tests for:
   - health route
   - settings GET/PUT
-- [ ] Confirm startup path includes DB readiness and singleton seed.
+- [x] Confirm startup path includes DB readiness and singleton seed.
 
 Done when:
 
@@ -146,11 +146,11 @@ Verify:
 
 ### Step 9: Define final `/api/logs/query` request/response schema
 
-- [ ] Implement Zod contracts for:
+- [x] Implement Zod contracts for:
   - request: `{ query, start, end, limit, cursor? }`
   - response: `{ rows, pageInfo }`
   - `pageInfo`: `olderCursor?`, `newerCursor?`, `hasOlder`, `hasNewer`
-- [ ] Enforce `query` default handling in frontend route state (default `*` when missing).
+- [x] Enforce `query` default handling in frontend route state (default `*` when missing).
 
 Done when:
 
@@ -163,14 +163,14 @@ Verify:
 
 ### Step 10: Implement directional cursor utilities in backend
 
-- [ ] Add cursor encode/decode utilities.
-- [ ] Include token fields:
+- [x] Add cursor encode/decode utilities.
+- [x] Include token fields:
   - `v`
   - `dir` (`older` or `newer`)
   - `queryHash`
   - `window` (`start`, `end`)
   - `anchor` (`time`, `streamId`, `tieBreaker`)
-- [ ] Add cursor validation and mismatch rejection logic.
+- [x] Add cursor validation and mismatch rejection logic.
 
 Done when:
 
@@ -183,11 +183,11 @@ Verify:
 
 ### Step 11: Implement `/api/logs/query` route using VictoriaLogs client
 
-- [ ] Map incoming request to VictoriaLogs query calls.
-- [ ] Normalize rows to UI model:
+- [x] Map incoming request to VictoriaLogs query calls.
+- [x] Normalize rows to UI model:
   - `time`, `message`, `streamId`, `stream`, `severity`, `serviceName`, `traceId`, `spanId`, `raw`
-- [ ] Build deterministic sort/tie-break behavior.
-- [ ] Return directional `pageInfo` cursors.
+- [x] Build deterministic sort/tie-break behavior.
+- [x] Return directional `pageInfo` cursors.
 
 Done when:
 
@@ -200,10 +200,10 @@ Verify:
 
 ### Step 12: Add logs route search-param schema in UI
 
-- [ ] Define TanStack Router search param parsing for:
+- [x] Define TanStack Router search param parsing for:
   - `q`, `range`, `start`, `end`, `live`, `selected`
-- [ ] Ensure URL is source of truth.
-- [ ] Ensure default query is `*` when `q` missing.
+- [x] Ensure URL is source of truth.
+- [x] Ensure default query is `*` when `q` missing.
 
 Done when:
 
@@ -216,9 +216,9 @@ Verify:
 
 ### Step 13: Build query bar and time range controls
 
-- [ ] Implement LogsQL input.
-- [ ] Implement relative presets and absolute time picker.
-- [ ] Wire submit/update into route search params.
+- [x] Implement LogsQL input.
+- [x] Implement relative presets and absolute time picker.
+- [x] Wire submit/update into route search params.
 
 Done when:
 
@@ -231,9 +231,9 @@ Verify:
 
 ### Step 14: Wire UI data fetching to `/api/logs/query`
 
-- [ ] Use TanStack Query for request lifecycle.
-- [ ] Include cancellation on rapid changes.
-- [ ] Render loading, empty, and error states.
+- [x] Use TanStack Query for request lifecycle.
+- [x] Include cancellation on rapid changes.
+- [x] Render loading, empty, and error states.
 
 Done when:
 
@@ -246,11 +246,11 @@ Verify:
 
 ### Step 15: Milestone 1 close-out checks
 
-- [ ] Add tests for:
+- [x] Add tests for:
   - URL search param parsing/defaults
   - query route validation failures
   - cursor mismatch handling
-- [ ] Confirm `q=*` default behavior on first load.
+- [x] Confirm `q=*` default behavior on first load.
 
 Done when:
 
@@ -266,9 +266,9 @@ Verify:
 
 ### Step 16: Introduce virtualized table shell
 
-- [ ] Create table component using TanStack Table + TanStack Virtual.
-- [ ] Add sticky header and large-list rendering baseline.
-- [ ] Keep component boundaries small and composable.
+- [x] Create table component using TanStack Table + TanStack Virtual.
+- [x] Add sticky header and large-list rendering baseline.
+- [x] Keep component boundaries small and composable.
 
 Done when:
 
@@ -281,9 +281,9 @@ Verify:
 
 ### Step 17: Implement bidirectional page loading in UI
 
-- [ ] Track `olderCursor` and `newerCursor` in client state (not URL).
-- [ ] Fetch older pages when scrolling upward.
-- [ ] Fetch newer pages within range when scrolling downward/backfill.
+- [x] Track `olderCursor` and `newerCursor` in client state (not URL).
+- [x] Fetch older pages when scrolling upward.
+- [x] Fetch newer pages within range when scrolling downward/backfill.
 
 Done when:
 
@@ -296,9 +296,9 @@ Verify:
 
 ### Step 18: Add dedupe, stable merge, and memory cap
 
-- [ ] Merge pages by deterministic row key.
-- [ ] Prevent duplicates across page boundaries.
-- [ ] Enforce max retained rows in memory.
+- [x] Merge pages by deterministic row key.
+- [x] Prevent duplicates across page boundaries.
+- [x] Enforce max retained rows in memory.
 
 Done when:
 
@@ -311,9 +311,9 @@ Verify:
 
 ### Step 19: Preserve scroll stability and bottom semantics
 
-- [ ] Ensure prepend (older rows) does not cause disruptive jump.
-- [ ] Preserve newest-at-bottom behavior.
-- [ ] Add logic for user-at-bottom detection to support later live mode.
+- [x] Ensure prepend (older rows) does not cause disruptive jump.
+- [x] Preserve newest-at-bottom behavior.
+- [x] Add logic for user-at-bottom detection to support later live mode.
 
 Done when:
 
@@ -326,11 +326,11 @@ Verify:
 
 ### Step 20: Milestone 2 close-out checks
 
-- [ ] Add tests for:
+- [x] Add tests for:
   - dedupe merge logic
   - bidirectional cursor paging behavior
   - memory cap eviction behavior
-- [ ] Run manual perf sanity check with large synthetic dataset.
+- [x] Run manual perf sanity check with large synthetic dataset.
 
 Done when:
 
@@ -344,7 +344,7 @@ Verify:
 
 ## Exit Criteria for This Runbook
 
-- [ ] Milestone 0 complete
-- [ ] Milestone 1 complete
-- [ ] Milestone 2 complete
-- [ ] No work started for Milestone 3+
+- [x] Milestone 0 complete
+- [x] Milestone 1 complete
+- [x] Milestone 2 complete
+- [x] No work started for Milestone 3+ (true at Milestone 0-2 completion checkpoint)
