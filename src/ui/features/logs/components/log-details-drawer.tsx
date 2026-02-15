@@ -1,5 +1,6 @@
 import * as React from "react";
 import { CopyButton } from "@/components/copy-button";
+import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useClipboard } from "@/hooks/use-clipboard";
 import type { LogRow } from "../api/types";
@@ -159,15 +160,20 @@ export function LogDetailsDrawer(props: {
                 >
                   {JSON.stringify(props.row.raw, null, 2)}
                 </pre>
-                <label className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={wrapRawJson}
-                    onChange={(event) => setWrapRawJson(event.currentTarget.checked)}
-                    className="h-3.5 w-3.5 rounded border-input"
-                  />
-                  Wrap text
-                </label>
+                <div className="mt-2 flex justify-end">
+                  <label
+                    htmlFor="wrap-raw-json"
+                    className="inline-flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    Wrap text
+                    <Switch
+                      id="wrap-raw-json"
+                      size="sm"
+                      checked={wrapRawJson}
+                      onCheckedChange={setWrapRawJson}
+                    />
+                  </label>
+                </div>
               </section>
             </div>
           ) : (
