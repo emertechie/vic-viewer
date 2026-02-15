@@ -65,7 +65,7 @@ export function parseLogsSearch(search: unknown, now: Date = new Date()): LogsSe
 
   const q = parsed.q?.trim() ? parsed.q.trim() : "*";
   const range = parsed.range ?? "15m";
-  const live = parsed.live ?? "1";
+  const live = parsed.live ?? "0";
 
   const start = toValidIso(parsed.start);
   const end = toValidIso(parsed.end);

@@ -3,7 +3,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const logsViewSettingsTable = sqliteTable("logs_view_settings", {
   id: integer("id").primaryKey(),
-  defaultLiveEnabled: integer("default_live_enabled", { mode: "boolean" }).notNull().default(true),
+  defaultLiveEnabled: integer("default_live_enabled", { mode: "boolean" }).notNull().default(false),
   rowDensity: text("row_density", { enum: ["comfortable", "compact"] })
     .notNull()
     .default("comfortable"),

@@ -62,7 +62,7 @@ describe("API health and settings routes", () => {
 
     expect(getInitialResponse.statusCode).toBe(200);
     expect(getInitialResponse.json()).toMatchObject({
-      defaultLiveEnabled: true,
+      defaultLiveEnabled: false,
       rowDensity: "comfortable",
       defaultRelativeRange: "15m",
     });

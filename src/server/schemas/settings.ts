@@ -18,7 +18,7 @@ export type LogsViewSettings = z.infer<typeof logsViewSettingsSchema>;
 export type LogsViewSettingsUpdate = z.infer<typeof logsViewSettingsUpdateSchema>;
 
 export const defaultLogsViewSettings: LogsViewSettings = {
-  defaultLiveEnabled: true,
+  defaultLiveEnabled: false,
   rowDensity: "comfortable",
   wrapLines: true,
   visibleColumns: ["time", "severity", "serviceName", "message", "traceId", "spanId"],
