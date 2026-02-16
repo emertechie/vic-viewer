@@ -2,7 +2,9 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type { LogsViewSettingsStore } from "./db/settingsStore";
 import { errorResponseSchema } from "./schemas/errors";
+import type { LogProfile } from "./schemas/logProfiles";
 import { registerHealthRoutes } from "./routes/health";
+import { registerLogProfileRoutes } from "./routes/logProfiles";
 import { registerLogsRoutes } from "./routes/logs";
 import { registerSettingsRoutes } from "./routes/settings";
 import { UpstreamRequestError } from "./vicstack/upstreamError";
@@ -12,6 +14,7 @@ export type AppServices = {
   isDatabaseReady: () => boolean;
   logsViewSettingsStore: LogsViewSettingsStore;
   victoriaLogsClient: VictoriaLogsClient;
+  getActiveLogProfile: () => LogProfile;
   logsCursorTransportMode: "encoded" | "json";
 };
 
@@ -37,6 +40,9 @@ const defaultServices: AppServices = {
     queryRaw: async () => {
       throw new Error("VictoriaLogs client not configured");
     },
+  },
+  getActiveLogProfile: () => {
+    throw new Error("Active log profile not configured");
   },
   logsCursorTransportMode: "encoded",
 };
@@ -95,6 +101,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerLogsRoutes(app, {
     victoriaLogsClient: services.victoriaLogsClient,
     cursorTransportMode: services.logsCursorTransportMode,
+  });
+  registerLogProfileRoutes(app, {
+    getActiveLogProfile: services.getActiveLogProfile,
   });
 
   return app;

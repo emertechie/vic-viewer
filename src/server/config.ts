@@ -18,6 +18,10 @@ const envSchema = z.object({
     .transform((value) => (value ?? "0").toLowerCase())
     .pipe(z.enum(["0", "1", "false", "true", "no", "yes"]))
     .transform((value) => value === "1" || value === "true" || value === "yes"),
+  LOGS_PROFILE_ID: z.string().min(1).default("dotnet-opentelemetry"),
+  LOGS_PROFILE_PATH: z
+    .string()
+    .default(path.resolve(process.cwd(), "src/tmp/profiles/dotnet-opentelemetry.yml")),
 });
 
 export type AppConfig = {
@@ -32,6 +36,8 @@ export type AppConfig = {
   fakeLogsProfile: "steady" | "bursty" | "noisy";
   fakeLogsSeed: string;
   logsCursorDebugRaw: boolean;
+  logsProfileId: string;
+  logsProfilePath: string;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -49,5 +55,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     fakeLogsProfile: parsed.FAKE_LOGS_PROFILE,
     fakeLogsSeed: parsed.FAKE_LOGS_SEED,
     logsCursorDebugRaw: parsed.LOGS_CURSOR_DEBUG_RAW,
+    logsProfileId: parsed.LOGS_PROFILE_ID,
+    logsProfilePath: parsed.LOGS_PROFILE_PATH,
   };
 }

@@ -4,6 +4,7 @@ import type { LogRow } from "@/features/logs/api/types";
 import { LogDetailsDrawer } from "@/features/logs/components/log-details-drawer";
 import { LogsQueryControls } from "@/features/logs/components/logs-query-controls";
 import { LogsTable } from "@/features/logs/components/logs-table";
+import { useActiveLogProfile } from "@/features/logs/hooks/use-active-log-profile";
 import { useLogsViewer } from "@/features/logs/hooks/use-logs-viewer";
 import {
   parseLogsSearch,
@@ -20,6 +21,7 @@ function LogsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const viewer = useLogsViewer(search);
+  const activeProfile = useActiveLogProfile();
   const selectedRow = React.useMemo(
     () => viewer.rows.find((row) => row.key === search.selected) ?? null,
     [search.selected, viewer.rows],
@@ -111,6 +113,7 @@ function LogsPage() {
         search={search}
         onApplySearch={onApplySearch}
         onToggleLive={onToggleLive}
+        activeProfileName={activeProfile.data?.name}
       />
       <div className="flex-1 overflow-hidden">
         <LogsTable
