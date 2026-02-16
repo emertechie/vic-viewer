@@ -1,0 +1,139 @@
+id: dotnet-opentelemetry
+name: DotNetOpenTelemetry
+version: 1
+
+coreFields:
+  time:
+    field: _time
+  message:
+    field: _msg
+  streamId:
+    field: _stream_id
+  stream:
+    field: _stream
+  severity:
+    fields:
+      - severity
+      - SeverityText
+  serviceName:
+    field: service.name
+  traceId:
+    fields:
+      - trace_id
+      - TraceId
+  spanId:
+    fields:
+      - span_id
+      - SpanId
+
+tieBreaker:
+  fields:
+    - _stream_id
+    - span_id
+    - SpanId
+    - trace_id
+    - TraceId
+    - _msg
+
+logTable:
+  columns:
+    - id: time
+      title: Time
+      field: _time
+    - id: level
+      title: Level
+      fields:
+        - severity
+        - SeverityText
+    - id: service
+      title: Service
+      field: service.name
+    - id: message
+      title: Message
+      field: _msg
+    - id: trace-id
+      title: TraceId
+      fields:
+        - trace_id
+        - TraceId
+    - id: span-id
+      title: SpanId
+      fields:
+        - span_id
+        - SpanId
+    - id: request-path
+      title: RequestPath
+      field: RequestPath
+      hidden: true
+
+logDetails:
+  fieldSets:
+    - name: Core
+      fields:
+        - title: Time
+          field: _time
+        - title: Level
+          fields:
+            - severity
+            - SeverityText
+        - title: Service
+          field: service.name
+        - title: Message
+          field: _msg
+        - title: RequestPath
+          field: RequestPath
+    - name: Stream
+      fields:
+        - title: Stream
+          field: _stream
+        - title: StreamId
+          field: _stream_id
+    - name: Correlation
+      fields:
+        - title: TraceId
+          fields:
+            - trace_id
+            - TraceId
+        - title: SpanId
+          fields:
+            - span_id
+            - SpanId
+        - title: RequestId
+          field: RequestId
+        - title: ParentId
+          field: ParentId
+        - title: ConnectionId
+          field: ConnectionId
+        - title: TransportConnectionId
+          field: TransportConnectionId
+    - name: Scope
+      fields:
+        - title: ScopeName
+          field: scope.name
+        - title: ScopeVersion
+          field: scope.version
+    - name: Structured Logging
+      fields:
+        - title: SQL
+          field: commandText
+          type: sql
+        - title: "{OriginalFormat}"
+          field: "{OriginalFormat}"
+        - type: StructuredLoggingFields
+    - name: Service
+      fields:
+        - title: ServiceInstanceId
+          field: service.instance.id
+        - title: ServiceVersion
+          field: service.version
+    - name: Telemetry
+      fields:
+        - title: Sdk Language
+          field: telemetry.sdk.language
+        - title: Sdk Name
+          field: telemetry.sdk.name
+        - title: Sdk Version
+          field: telemetry.sdk.version
+    - name: Other
+      fields:
+        - type: RemainingFields
