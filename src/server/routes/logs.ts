@@ -103,6 +103,15 @@ export function registerLogsRoutes(
         cursor = decodeCursor(normalizedRequest.cursor);
         assertValidCursorContext(cursor, normalizedRequest, queryHash);
       } catch {
+        request.log.warn(
+          {
+            route: "/api/logs/query",
+            request: normalizedRequest,
+            queryHash,
+            cursorRaw: normalizedRequest.cursor,
+          },
+          "Rejected logs query request due to invalid cursor",
+        );
         reply.status(400).send({
           code: "INVALID_CURSOR",
           message: "Cursor is invalid for this query context",
@@ -112,6 +121,17 @@ export function registerLogsRoutes(
     }
 
     const window = resolveRequestWindow(normalizedRequest, cursor);
+
+    request.log.info(
+      {
+        route: "/api/logs/query",
+        request: normalizedRequest,
+        queryHash,
+        resolvedWindow: window,
+        decodedCursor: cursor,
+      },
+      "Received logs query request",
+    );
 
     const rawPayload = await options.victoriaLogsClient.queryRaw({
       query: normalizedRequest.query,
