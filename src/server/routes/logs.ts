@@ -14,7 +14,13 @@ import {
   isBeforeAnchor,
   normalizeLogRecord,
 } from "../logs/normalize";
-import { buildQueryHash, createCursorFromRow, decodeCursor } from "../logs/cursor";
+import {
+  buildCursorFromRow,
+  buildQueryHash,
+  parseCursorInput,
+  serializeCursor,
+  type CursorTransportMode,
+} from "../logs/cursor";
 
 function resolveRequestWindow(request: LogsQueryRequest, cursor: LogsCursor | null) {
   if (!cursor) {
@@ -81,7 +87,7 @@ function assertValidCursorContext(
 
 export function registerLogsRoutes(
   app: FastifyInstance,
-  options: { victoriaLogsClient: VictoriaLogsClient },
+  options: { victoriaLogsClient: VictoriaLogsClient; cursorTransportMode: CursorTransportMode },
 ) {
   app.post("/api/logs/query", async (request, reply) => {
     const parsedRequest = logsQueryRequestSchema.parse(request.body);
@@ -100,7 +106,7 @@ export function registerLogsRoutes(
     let cursor: LogsCursor | null = null;
     if (normalizedRequest.cursor) {
       try {
-        cursor = decodeCursor(normalizedRequest.cursor);
+        cursor = parseCursorInput(normalizedRequest.cursor, options.cursorTransportMode);
         assertValidCursorContext(cursor, normalizedRequest, queryHash);
       } catch {
         request.log.warn(
@@ -109,6 +115,7 @@ export function registerLogsRoutes(
             request: normalizedRequest,
             queryHash,
             cursorRaw: normalizedRequest.cursor,
+            cursorTransportMode: options.cursorTransportMode,
           },
           "Rejected logs query request due to invalid cursor",
         );
@@ -129,6 +136,7 @@ export function registerLogsRoutes(
         queryHash,
         resolvedWindow: window,
         decodedCursor: cursor,
+        cursorTransportMode: options.cursorTransportMode,
       },
       "Received logs query request",
     );
@@ -166,27 +174,33 @@ export function registerLogsRoutes(
         hasNewer,
         olderCursor:
           hasOlder && oldestRow
-            ? createCursorFromRow({
-                direction: "older",
-                row: oldestRow,
-                queryHash,
-                window: {
-                  start: normalizedRequest.start,
-                  end: normalizedRequest.end,
-                },
-              })
+            ? serializeCursor(
+                buildCursorFromRow({
+                  direction: "older",
+                  row: oldestRow,
+                  queryHash,
+                  window: {
+                    start: normalizedRequest.start,
+                    end: normalizedRequest.end,
+                  },
+                }),
+                options.cursorTransportMode,
+              )
             : undefined,
         newerCursor:
           hasNewer && newestRow
-            ? createCursorFromRow({
-                direction: "newer",
-                row: newestRow,
-                queryHash,
-                window: {
-                  start: normalizedRequest.start,
-                  end: normalizedRequest.end,
-                },
-              })
+            ? serializeCursor(
+                buildCursorFromRow({
+                  direction: "newer",
+                  row: newestRow,
+                  queryHash,
+                  window: {
+                    start: normalizedRequest.start,
+                    end: normalizedRequest.end,
+                  },
+                }),
+                options.cursorTransportMode,
+              )
             : undefined,
       },
     });

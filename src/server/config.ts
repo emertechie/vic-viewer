@@ -12,6 +12,12 @@ const envSchema = z.object({
   LOGS_DATA_MODE: z.enum(["vicstack", "fake"]).default("vicstack"),
   FAKE_LOGS_PROFILE: z.enum(["steady", "bursty", "noisy"]).default("steady"),
   FAKE_LOGS_SEED: z.string().default("vic-viewer-fake-seed"),
+  LOGS_CURSOR_DEBUG_RAW: z
+    .string()
+    .optional()
+    .transform((value) => (value ?? "0").toLowerCase())
+    .pipe(z.enum(["0", "1", "false", "true", "no", "yes"]))
+    .transform((value) => value === "1" || value === "true" || value === "yes"),
 });
 
 export type AppConfig = {
@@ -25,6 +31,7 @@ export type AppConfig = {
   logsDataMode: "vicstack" | "fake";
   fakeLogsProfile: "steady" | "bursty" | "noisy";
   fakeLogsSeed: string;
+  logsCursorDebugRaw: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -41,5 +48,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logsDataMode: parsed.LOGS_DATA_MODE,
     fakeLogsProfile: parsed.FAKE_LOGS_PROFILE,
     fakeLogsSeed: parsed.FAKE_LOGS_SEED,
+    logsCursorDebugRaw: parsed.LOGS_CURSOR_DEBUG_RAW,
   };
 }

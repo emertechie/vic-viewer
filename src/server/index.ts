@@ -23,6 +23,7 @@ async function startServer() {
       isDatabaseReady: () => isDatabaseReady,
       logsViewSettingsStore,
       victoriaLogsClient,
+      logsCursorTransportMode: config.logsCursorDebugRaw ? "json" : "encoded",
     },
   });
 

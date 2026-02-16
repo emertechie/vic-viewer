@@ -12,6 +12,7 @@ export type AppServices = {
   isDatabaseReady: () => boolean;
   logsViewSettingsStore: LogsViewSettingsStore;
   victoriaLogsClient: VictoriaLogsClient;
+  logsCursorTransportMode: "encoded" | "json";
 };
 
 export type BuildAppOptions = {
@@ -37,6 +38,7 @@ const defaultServices: AppServices = {
       throw new Error("VictoriaLogs client not configured");
     },
   },
+  logsCursorTransportMode: "encoded",
 };
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -92,6 +94,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
   registerLogsRoutes(app, {
     victoriaLogsClient: services.victoriaLogsClient,
+    cursorTransportMode: services.logsCursorTransportMode,
   });
 
   return app;

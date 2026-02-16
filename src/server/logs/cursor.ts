@@ -7,6 +7,7 @@ import {
 } from "../schemas/logs";
 
 export type CursorQueryContext = Pick<LogsQueryRequest, "query" | "start" | "end">;
+export type CursorTransportMode = "encoded" | "json";
 
 export function buildQueryHash(context: CursorQueryContext): string {
   return createHash("sha256")
@@ -40,16 +41,39 @@ export function decodeCursor(encodedCursor: string): LogsCursor {
   return logsCursorSchema.parse(JSON.parse(decoded) as unknown);
 }
 
-export function createCursorFromRow(options: {
+export function parseCursorInput(
+  cursorInput: string | LogsCursor,
+  mode: CursorTransportMode,
+): LogsCursor {
+  if (mode === "json") {
+    return logsCursorSchema.parse(cursorInput);
+  }
+
+  if (typeof cursorInput !== "string") {
+    throw new Error("Cursor must be an encoded string");
+  }
+
+  return decodeCursor(cursorInput);
+}
+
+export function serializeCursor(
+  cursor: LogsCursor,
+  mode: CursorTransportMode,
+): string | LogsCursor {
+  const parsedCursor = logsCursorSchema.parse(cursor);
+  return mode === "json" ? parsedCursor : encodeCursor(parsedCursor);
+}
+
+export function buildCursorFromRow(options: {
   direction: "older" | "newer";
   row: LogRow;
   queryHash: string;
   window: { start: string; end: string };
-}): string {
+}): LogsCursor {
   const keyParts = options.row.key.split(":");
   const tieBreaker = keyParts[keyParts.length - 1] ?? "";
 
-  return encodeCursor({
+  return logsCursorSchema.parse({
     v: 1,
     dir: options.direction,
     queryHash: options.queryHash,
@@ -60,4 +84,13 @@ export function createCursorFromRow(options: {
       tieBreaker,
     },
   });
+}
+
+export function createCursorFromRow(options: {
+  direction: "older" | "newer";
+  row: LogRow;
+  queryHash: string;
+  window: { start: string; end: string };
+}): string {
+  return encodeCursor(buildCursorFromRow(options));
 }
