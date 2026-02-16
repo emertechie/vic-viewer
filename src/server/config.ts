@@ -21,7 +21,7 @@ const envSchema = z.object({
   LOGS_PROFILE_ID: z.string().min(1).default("dotnet-opentelemetry"),
   LOGS_PROFILE_PATH: z
     .string()
-    .default(path.resolve(process.cwd(), "src/tmp/profiles/dotnet-opentelemetry.yml")),
+    .default(path.resolve(process.cwd(), "config/log-profiles/dotnet-opentelemetry.yml")),
 });
 
 export type AppConfig = {

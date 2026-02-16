@@ -141,7 +141,7 @@ Intent:
 
 ## Initial Implementation Targets
 
-- Profile file: move/promote `src/tmp/profiles/dotnet-opentelemetry.yml` to a stable profile location.
+- Profile file: `config/log-profiles/dotnet-opentelemetry.yml`.
 - Shape reference for structured logging behavior: `src/tmp/data-shape.jsonc`.
 - Existing redundant fields marked for removal: `src/server/logs/normalize.ts`.
 
