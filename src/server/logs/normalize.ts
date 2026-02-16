@@ -98,25 +98,7 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
 }
 
 export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
-  const directRecords = toRawLogRecordArray(payload);
-  if (directRecords) {
-    return directRecords;
-  }
-
-  if (typeof payload !== "object" || payload === null) {
-    return [];
-  }
-
-  const asObject = payload as Record<string, unknown>;
-
-  // Keep these wrappers for compatibility with alternate/legacy payload shims.
-  // The direct VictoriaLogs path usually yields an array directly.
-  return (
-    toRawLogRecordArray(asObject.hits) ??
-    toRawLogRecordArray(asObject.logs) ??
-    toRawLogRecordArray(asObject.data) ??
-    []
-  );
+  return toRawLogRecordArray(payload) ?? [];
 }
 
 export function compareLogRows(left: LogRow, right: LogRow): number {
