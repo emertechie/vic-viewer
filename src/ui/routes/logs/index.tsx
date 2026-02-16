@@ -119,6 +119,7 @@ function LogsPage() {
         <LogsTable
           rows={viewer.rows}
           pageInfo={viewer.pageInfo}
+          activeProfile={activeProfile.data ?? null}
           selectedRowKey={search.selected}
           loadingOlder={viewer.loadingOlder}
           loadingNewer={viewer.loadingNewer}
@@ -133,6 +134,7 @@ function LogsPage() {
       <LogDetailsDrawer
         selectedKey={search.selected}
         row={selectedRow}
+        activeProfile={activeProfile.data ?? null}
         onClose={onCloseDrawer}
         onOpenTrace={onOpenTrace}
       />

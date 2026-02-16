@@ -1,16 +1,31 @@
 import * as React from "react";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { LogRow, LogsPageInfo } from "../api/types";
+import type { LogProfile, LogRow, LogsPageInfo } from "../api/types";
 import { getPageInfoOrDefault } from "../state/paging";
+import {
+  getProfileFieldIdentifier,
+  getProfileFieldLabel,
+  resolveCoreFieldDisplayText,
+  resolveFieldDisplayText,
+} from "../state/profile-fields";
 
-const columns: ColumnDef<LogRow>[] = [
-  { accessorKey: "time", header: "Time" },
-  { accessorKey: "severity", header: "Level" },
-  { accessorKey: "serviceName", header: "Service" },
-  { accessorKey: "message", header: "Message" },
-  { accessorKey: "traceId", header: "TraceId" },
-  { accessorKey: "spanId", header: "SpanId" },
+type LogsTableColumn = {
+  id: string;
+  title: string;
+  hidden?: boolean;
+  field?: string;
+  fields?: string[];
+  legacyAccessor?: keyof LogRow;
+};
+
+const fallbackColumns: LogsTableColumn[] = [
+  { id: "time", title: "Time", legacyAccessor: "time" },
+  { id: "severity", title: "Level", legacyAccessor: "severity" },
+  { id: "service-name", title: "Service", legacyAccessor: "serviceName" },
+  { id: "message", title: "Message", legacyAccessor: "message" },
+  { id: "trace-id", title: "TraceId", legacyAccessor: "traceId" },
+  { id: "span-id", title: "SpanId", legacyAccessor: "spanId" },
 ];
 
 const ROW_ESTIMATE_PX = 34;
@@ -28,16 +43,34 @@ function extractSequence(message: string): number | null {
   return Number.isNaN(sequence) ? null : sequence;
 }
 
-function isFakeSequenceMode(rows: LogRow[]): boolean {
+function resolveMessageForRow(row: LogRow, activeProfile: LogProfile | null): string {
+  if (!activeProfile) {
+    return row.message;
+  }
+
+  return (
+    resolveCoreFieldDisplayText({
+      record: row.raw,
+      profile: activeProfile,
+      coreField: "message",
+    }) ?? row.message
+  );
+}
+
+function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile | null): boolean {
   const sample = rows.slice(0, 20);
   if (sample.length === 0) {
     return false;
   }
 
-  return sample.every((row) => extractSequence(row.message) !== null);
+  return sample.every((row) => extractSequence(resolveMessageForRow(row, activeProfile)) !== null);
 }
 
-function getSequenceCheckStatus(rows: LogRow[], index: number): SequenceCheckStatus {
+function getSequenceCheckStatus(
+  rows: LogRow[],
+  index: number,
+  activeProfile: LogProfile | null,
+): SequenceCheckStatus {
   const current = rows[index];
   if (!current) {
     return "none";
@@ -49,9 +82,13 @@ function getSequenceCheckStatus(rows: LogRow[], index: number): SequenceCheckSta
     return "none";
   }
 
-  const currentSequence = extractSequence(current.message);
-  const aboveSequence = hasAbove ? extractSequence(rows[index - 1]?.message ?? "") : null;
-  const belowSequence = hasBelow ? extractSequence(rows[index + 1]?.message ?? "") : null;
+  const currentSequence = extractSequence(resolveMessageForRow(current, activeProfile));
+  const aboveSequence = hasAbove
+    ? extractSequence(resolveMessageForRow(rows[index - 1] as LogRow, activeProfile))
+    : null;
+  const belowSequence = hasBelow
+    ? extractSequence(resolveMessageForRow(rows[index + 1] as LogRow, activeProfile))
+    : null;
 
   if (
     hasAbove &&
@@ -86,9 +123,54 @@ function getSequenceRowClasses(status: SequenceCheckStatus): string {
   return "hover:bg-muted/40";
 }
 
+function toTableColumns(activeProfile: LogProfile | null): LogsTableColumn[] {
+  if (!activeProfile) {
+    return fallbackColumns;
+  }
+
+  return activeProfile.logTable.columns.map((column) => ({
+    id: getProfileFieldIdentifier(column),
+    title: getProfileFieldLabel(column),
+    hidden: column.hidden,
+    field: column.field,
+    fields: column.fields,
+  }));
+}
+
+function getGridTemplateColumns(columns: LogsTableColumn[]): string {
+  return columns
+    .map((column) => {
+      const id = column.id.toLowerCase();
+      const title = column.title.toLowerCase();
+      if (id.includes("time") || title === "time") {
+        return "210px";
+      }
+
+      if (id.includes("level") || id.includes("severity") || title === "level") {
+        return "90px";
+      }
+
+      if (id.includes("message") || title === "message") {
+        return "minmax(420px,1fr)";
+      }
+
+      if (id.includes("trace") || id.includes("span")) {
+        return "320px";
+      }
+
+      if (id.includes("service") || title === "service") {
+        return "220px";
+      }
+
+      return "minmax(180px,1fr)";
+    })
+    .join("_");
+}
+
 export function LogsTable(props: {
   rows: LogRow[];
   pageInfo: LogsPageInfo | null;
+  activeProfile?: LogProfile | null;
   selectedRowKey?: string;
   loadingOlder: boolean;
   loadingNewer: boolean;
@@ -112,7 +194,39 @@ export function LogsTable(props: {
   });
   const olderLoadStartRowsRef = React.useRef<number | null>(null);
   const newerLoadStartRowsRef = React.useRef<number | null>(null);
-  const fakeSequenceMode = React.useMemo(() => isFakeSequenceMode(props.rows), [props.rows]);
+  const tableColumns = React.useMemo(
+    () => toTableColumns(props.activeProfile ?? null).filter((column) => !column.hidden),
+    [props.activeProfile],
+  );
+  const gridTemplateColumns = React.useMemo(
+    () => getGridTemplateColumns(tableColumns),
+    [tableColumns],
+  );
+  const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
+    return tableColumns.map((column) => ({
+      id: column.id,
+      header: column.title,
+      cell: (context) => {
+        const row = context.row.original;
+        if (column.field || column.fields) {
+          return resolveFieldDisplayText(row.raw, {
+            field: column.field,
+            fields: column.fields,
+          });
+        }
+
+        if (column.legacyAccessor) {
+          return row[column.legacyAccessor] ?? null;
+        }
+
+        return null;
+      },
+    }));
+  }, [tableColumns]);
+  const fakeSequenceMode = React.useMemo(
+    () => isFakeSequenceMode(props.rows, props.activeProfile ?? null),
+    [props.activeProfile, props.rows],
+  );
   const table = useReactTable({
     data: props.rows,
     columns,
@@ -185,7 +299,7 @@ export function LogsTable(props: {
 
   React.useEffect(() => {
     const element = containerRef.current;
-    if (!element || !isAtBottomRef.current) {
+    if (!element || !isAtBottomRef.current || props.rows.length === 0) {
       return;
     }
 
@@ -270,7 +384,10 @@ export function LogsTable(props: {
           {props.errorMessage}
         </div>
       ) : null}
-      <div className="grid shrink-0 grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-muted/30">
+      <div
+        className="grid shrink-0 border-b border-border bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-muted/30"
+        style={{ gridTemplateColumns }}
+      >
         {table.getHeaderGroups().map((headerGroup) =>
           headerGroup.headers.map((header) => (
             <div key={header.id} className="truncate px-1">
@@ -289,28 +406,43 @@ export function LogsTable(props: {
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rowModel.rows[virtualRow.index];
             const sequenceStatus = fakeSequenceMode
-              ? getSequenceCheckStatus(props.rows, virtualRow.index)
+              ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile ?? null)
               : "none";
+            const rowClassName = `absolute left-0 grid w-full border-b border-border/60 px-3 text-xs ${getSequenceRowClasses(
+              sequenceStatus,
+            )} ${props.selectedRowKey === row.id ? "ring-1 ring-inset ring-primary/60" : ""} ${
+              props.onSelectRow ? "cursor-pointer" : ""
+            }`;
+            const rowStyle = {
+              top: 0,
+              transform: `translateY(${virtualRow.start}px)`,
+              height: `${virtualRow.size}px`,
+              gridTemplateColumns,
+            } as const;
+
+            const rowCells = row.getVisibleCells().map((cell) => (
+              <div key={cell.id} className="self-center truncate px-1 text-foreground/90">
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </div>
+            ));
+
+            if (props.onSelectRow) {
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => props.onSelectRow?.(row.original)}
+                  className={rowClassName}
+                  style={rowStyle}
+                >
+                  {rowCells}
+                </button>
+              );
+            }
+
             return (
-              <div
-                key={row.id}
-                onClick={() => props.onSelectRow?.(row.original)}
-                className={`absolute left-0 grid w-full grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border/60 px-3 text-xs ${getSequenceRowClasses(
-                  sequenceStatus,
-                )} ${props.selectedRowKey === row.id ? "ring-1 ring-inset ring-primary/60" : ""} ${
-                  props.onSelectRow ? "cursor-pointer" : ""
-                }`}
-                style={{
-                  top: 0,
-                  transform: `translateY(${virtualRow.start}px)`,
-                  height: `${virtualRow.size}px`,
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <div key={cell.id} className="self-center truncate px-1 text-foreground/90">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </div>
-                ))}
+              <div key={row.id} className={rowClassName} style={rowStyle}>
+                {rowCells}
               </div>
             );
           })}
