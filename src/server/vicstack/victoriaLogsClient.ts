@@ -7,6 +7,7 @@ export type VictoriaLogsClient = {
     start: string;
     end: string;
     limit: number;
+    cursorDirection?: "older" | "newer";
     abortSignal?: AbortSignal;
   }) => Promise<unknown>;
 };

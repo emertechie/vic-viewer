@@ -3,6 +3,86 @@ import { logRowSchema, type LogRow } from "../schemas/logs";
 
 type RawLogRecord = Record<string, unknown>;
 
+type LogRowKeyParts = {
+  streamId: string | null;
+  time: string;
+  tieBreaker: string;
+};
+
+type SortTarget = {
+  time: string;
+  key: string;
+  sequence: number | null;
+};
+
+function isRawLogRecord(value: unknown): value is RawLogRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function toRawLogRecordArray(value: unknown): RawLogRecord[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value.filter(isRawLogRecord);
+}
+
+function buildLogRowKey(parts: LogRowKeyParts): string {
+  return `${parts.streamId ?? "unknown"}:${parts.time}:${parts.tieBreaker}`;
+}
+
+function buildLogRowKeyFromRow(row: Pick<LogRow, "streamId" | "time" | "tieBreaker">): string {
+  return buildLogRowKey({
+    streamId: row.streamId,
+    time: row.time,
+    tieBreaker: row.tieBreaker,
+  });
+}
+
+export function extractLogSequence(message: string): number | null {
+  const sequenceMatch = message.match(/^SEQ:(\d+)/);
+  if (!sequenceMatch) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(sequenceMatch[1], 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function buildSortTargetFromRow(row: LogRow): SortTarget {
+  return {
+    time: row.time,
+    key: buildLogRowKeyFromRow(row),
+    sequence: extractLogSequence(row.message),
+  };
+}
+
+function buildSortTargetFromAnchor(anchor: {
+  time: string;
+  streamId: string | null;
+  tieBreaker: string;
+  sequence?: number;
+}): SortTarget {
+  return {
+    time: anchor.time,
+    key: buildLogRowKey(anchor),
+    sequence: anchor.sequence ?? null,
+  };
+}
+
+function compareSortTargets(left: SortTarget, right: SortTarget): number {
+  const timeDelta = left.time.localeCompare(right.time);
+  if (timeDelta !== 0) {
+    return timeDelta;
+  }
+
+  if (left.sequence !== null && right.sequence !== null && left.sequence !== right.sequence) {
+    return left.sequence - right.sequence;
+  }
+
+  return left.key.localeCompare(right.key);
+}
+
 function getNullableString(record: RawLogRecord, key: string): string | null {
   const value = record[key];
   if (typeof value !== "string") {
@@ -58,8 +138,13 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
   });
 
   return logRowSchema.parse({
-    key: `${streamId ?? "unknown"}:${time}:${tieBreaker}`,
+    key: buildLogRowKey({
+      streamId,
+      time,
+      tieBreaker,
+    }),
     time,
+    tieBreaker,
     message,
     streamId,
     stream,
@@ -72,71 +157,27 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
 }
 
 export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
-  if (Array.isArray(payload)) {
-    return payload.filter(
-      (value): value is RawLogRecord => typeof value === "object" && value !== null,
-    );
-  }
-
-  if (typeof payload !== "object" || payload === null) {
-    return [];
-  }
-
-  const asObject = payload as Record<string, unknown>;
-  const candidates = [asObject.hits, asObject.logs, asObject.data];
-
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) {
-      continue;
-    }
-
-    return candidate.filter(
-      (value): value is RawLogRecord => typeof value === "object" && value !== null,
-    );
-  }
-
-  return [];
+  return toRawLogRecordArray(payload) ?? [];
 }
 
 export function compareLogRows(left: LogRow, right: LogRow): number {
-  const timeDelta = left.time.localeCompare(right.time);
-  if (timeDelta !== 0) {
-    return timeDelta;
-  }
-
-  return left.key.localeCompare(right.key);
+  return compareSortTargets(buildSortTargetFromRow(left), buildSortTargetFromRow(right));
 }
 
 export function isBeforeAnchor(
   candidate: LogRow,
-  anchor: { time: string; streamId: string | null; tieBreaker: string },
+  anchor: { time: string; streamId: string | null; tieBreaker: string; sequence?: number },
 ): boolean {
-  const anchorKey = `${anchor.streamId ?? "unknown"}:${anchor.time}:${anchor.tieBreaker}`;
-
-  if (candidate.time < anchor.time) {
-    return true;
-  }
-
-  if (candidate.time > anchor.time) {
-    return false;
-  }
-
-  return candidate.key < anchorKey;
+  return (
+    compareSortTargets(buildSortTargetFromRow(candidate), buildSortTargetFromAnchor(anchor)) < 0
+  );
 }
 
 export function isAfterAnchor(
   candidate: LogRow,
-  anchor: { time: string; streamId: string | null; tieBreaker: string },
+  anchor: { time: string; streamId: string | null; tieBreaker: string; sequence?: number },
 ): boolean {
-  const anchorKey = `${anchor.streamId ?? "unknown"}:${anchor.time}:${anchor.tieBreaker}`;
-
-  if (candidate.time > anchor.time) {
-    return true;
-  }
-
-  if (candidate.time < anchor.time) {
-    return false;
-  }
-
-  return candidate.key > anchorKey;
+  return (
+    compareSortTargets(buildSortTargetFromRow(candidate), buildSortTargetFromAnchor(anchor)) > 0
+  );
 }

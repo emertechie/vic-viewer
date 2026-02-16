@@ -14,7 +14,13 @@ import {
   isBeforeAnchor,
   normalizeLogRecord,
 } from "../logs/normalize";
-import { buildQueryHash, createCursorFromRow, decodeCursor } from "../logs/cursor";
+import {
+  buildCursorFromRow,
+  buildQueryHash,
+  parseCursorInput,
+  serializeCursor,
+  type CursorTransportMode,
+} from "../logs/cursor";
 
 function resolveRequestWindow(request: LogsQueryRequest, cursor: LogsCursor | null) {
   if (!cursor) {
@@ -48,6 +54,7 @@ function applyCursorFilter(rows: LogRow[], cursor: LogsCursor | null): LogRow[] 
         time: cursor.anchor.time,
         streamId: cursor.anchor.streamId,
         tieBreaker: cursor.anchor.tieBreaker,
+        sequence: cursor.anchor.sequence,
       }),
     );
   }
@@ -57,12 +64,38 @@ function applyCursorFilter(rows: LogRow[], cursor: LogsCursor | null): LogRow[] 
       time: cursor.anchor.time,
       streamId: cursor.anchor.streamId,
       tieBreaker: cursor.anchor.tieBreaker,
+      sequence: cursor.anchor.sequence,
     }),
   );
 }
 
 function clampLimit(limit: number): number {
   return Math.max(1, Math.min(limit, 500));
+}
+
+function describePayloadShape(payload: unknown): Record<string, unknown> {
+  if (Array.isArray(payload)) {
+    return {
+      payloadType: "array",
+      payloadLength: payload.length,
+    };
+  }
+
+  if (payload === null) {
+    return { payloadType: "null" };
+  }
+
+  if (typeof payload === "object") {
+    return {
+      payloadType: "object",
+      payloadKeys: Object.keys(payload as Record<string, unknown>).slice(0, 20),
+    };
+  }
+
+  return {
+    payloadType: typeof payload,
+    payloadValue: payload,
+  };
 }
 
 function assertValidCursorContext(
@@ -81,7 +114,7 @@ function assertValidCursorContext(
 
 export function registerLogsRoutes(
   app: FastifyInstance,
-  options: { victoriaLogsClient: VictoriaLogsClient },
+  options: { victoriaLogsClient: VictoriaLogsClient; cursorTransportMode: CursorTransportMode },
 ) {
   app.post("/api/logs/query", async (request, reply) => {
     const parsedRequest = logsQueryRequestSchema.parse(request.body);
@@ -100,9 +133,19 @@ export function registerLogsRoutes(
     let cursor: LogsCursor | null = null;
     if (normalizedRequest.cursor) {
       try {
-        cursor = decodeCursor(normalizedRequest.cursor);
+        cursor = parseCursorInput(normalizedRequest.cursor, options.cursorTransportMode);
         assertValidCursorContext(cursor, normalizedRequest, queryHash);
       } catch {
+        request.log.warn(
+          {
+            route: "/api/logs/query",
+            request: normalizedRequest,
+            queryHash,
+            cursorRaw: normalizedRequest.cursor,
+            cursorTransportMode: options.cursorTransportMode,
+          },
+          "Rejected logs query request due to invalid cursor",
+        );
         reply.status(400).send({
           code: "INVALID_CURSOR",
           message: "Cursor is invalid for this query context",
@@ -113,17 +156,54 @@ export function registerLogsRoutes(
 
     const window = resolveRequestWindow(normalizedRequest, cursor);
 
+    request.log.info(
+      {
+        route: "/api/logs/query",
+        request: normalizedRequest,
+        queryHash,
+        resolvedWindow: window,
+        decodedCursor: cursor,
+        cursorTransportMode: options.cursorTransportMode,
+      },
+      "Received logs query request",
+    );
+
     const rawPayload = await options.victoriaLogsClient.queryRaw({
       query: normalizedRequest.query,
       start: window.start,
       end: window.end,
       limit: normalizedRequest.limit,
+      cursorDirection: cursor?.dir,
     });
 
+    const rawRecords = extractRawLogRecords(rawPayload);
+    if (!Array.isArray(rawPayload)) {
+      request.log.warn(
+        {
+          route: "/api/logs/query",
+          request: normalizedRequest,
+          queryHash,
+          ...describePayloadShape(rawPayload),
+        },
+        "Logs payload could not be parsed: expected top-level array",
+      );
+    } else if (rawRecords.length !== rawPayload.length) {
+      request.log.warn(
+        {
+          route: "/api/logs/query",
+          request: normalizedRequest,
+          queryHash,
+          payloadType: "array",
+          payloadLength: rawPayload.length,
+          parsedRecordCount: rawRecords.length,
+          droppedEntries: rawPayload.length - rawRecords.length,
+        },
+        "Logs payload contained non-object entries and was partially ignored",
+      );
+    }
+
     const rows = applyCursorFilter(
-      extractRawLogRecords(rawPayload)
-        .map(normalizeLogRecord)
-        .filter((row): row is LogRow => Boolean(row)),
+      rawRecords.map(normalizeLogRecord).filter((row): row is LogRow => Boolean(row)),
       cursor,
     )
       .sort(compareLogRows)
@@ -145,27 +225,33 @@ export function registerLogsRoutes(
         hasNewer,
         olderCursor:
           hasOlder && oldestRow
-            ? createCursorFromRow({
-                direction: "older",
-                row: oldestRow,
-                queryHash,
-                window: {
-                  start: normalizedRequest.start,
-                  end: normalizedRequest.end,
-                },
-              })
+            ? serializeCursor(
+                buildCursorFromRow({
+                  direction: "older",
+                  row: oldestRow,
+                  queryHash,
+                  window: {
+                    start: normalizedRequest.start,
+                    end: normalizedRequest.end,
+                  },
+                }),
+                options.cursorTransportMode,
+              )
             : undefined,
         newerCursor:
           hasNewer && newestRow
-            ? createCursorFromRow({
-                direction: "newer",
-                row: newestRow,
-                queryHash,
-                window: {
-                  start: normalizedRequest.start,
-                  end: normalizedRequest.end,
-                },
-              })
+            ? serializeCursor(
+                buildCursorFromRow({
+                  direction: "newer",
+                  row: newestRow,
+                  queryHash,
+                  window: {
+                    start: normalizedRequest.start,
+                    end: normalizedRequest.end,
+                  },
+                }),
+                options.cursorTransportMode,
+              )
             : undefined,
       },
     });

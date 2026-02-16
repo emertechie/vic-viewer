@@ -127,4 +127,76 @@ describe("logs query API", () => {
       code: "INVALID_CURSOR",
     });
   });
+
+  it("pages newer rows correctly when sequence and key ordering differ", async () => {
+    const sequenceApp = buildApp({
+      logger: false,
+      services: {
+        isDatabaseReady: () => true,
+        logsViewSettingsStore: initializedDb!.logsViewSettingsStore,
+        victoriaLogsClient: {
+          queryRaw: async () => [
+            {
+              _time: "2026-02-14T19:25:34.66023Z",
+              _stream_id: "a-stream",
+              _stream: '{service.name="svc"}',
+              _msg: "SEQ:000000002 two",
+              "service.name": "svc",
+              severity: "INFO",
+              span_id: "span-2",
+              trace_id: "trace-2",
+            },
+            {
+              _time: "2026-02-14T19:25:34.66023Z",
+              _stream_id: "z-stream",
+              _stream: '{service.name="svc"}',
+              _msg: "SEQ:000000001 one",
+              "service.name": "svc",
+              severity: "INFO",
+              span_id: "span-1",
+              trace_id: "trace-1",
+            },
+          ],
+        },
+      },
+    });
+
+    try {
+      const initialResponse = await sequenceApp.inject({
+        method: "POST",
+        url: "/api/logs/query",
+        payload: {
+          query: "*",
+          start: "2026-02-14T19:00:00.000Z",
+          end: "2026-02-14T19:30:00.000Z",
+          limit: 1,
+        },
+      });
+
+      expect(initialResponse.statusCode).toBe(200);
+      const initialBody = initialResponse.json();
+      expect(initialBody.rows).toHaveLength(1);
+      expect(initialBody.rows[0]?.message).toContain("SEQ:000000001");
+      expect(initialBody.pageInfo.newerCursor).toBeTruthy();
+
+      const newerResponse = await sequenceApp.inject({
+        method: "POST",
+        url: "/api/logs/query",
+        payload: {
+          query: "*",
+          start: "2026-02-14T19:00:00.000Z",
+          end: "2026-02-14T19:30:00.000Z",
+          limit: 1,
+          cursor: initialBody.pageInfo.newerCursor,
+        },
+      });
+
+      expect(newerResponse.statusCode).toBe(200);
+      const newerBody = newerResponse.json();
+      expect(newerBody.rows).toHaveLength(1);
+      expect(newerBody.rows[0]?.message).toContain("SEQ:000000002");
+    } finally {
+      await sequenceApp.close();
+    }
+  });
 });

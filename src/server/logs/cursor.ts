@@ -5,8 +5,10 @@ import {
   type LogsCursor,
   type LogsQueryRequest,
 } from "../schemas/logs";
+import { extractLogSequence } from "./normalize";
 
 export type CursorQueryContext = Pick<LogsQueryRequest, "query" | "start" | "end">;
+export type CursorTransportMode = "encoded" | "json";
 
 export function buildQueryHash(context: CursorQueryContext): string {
   return createHash("sha256")
@@ -17,7 +19,7 @@ export function buildQueryHash(context: CursorQueryContext): string {
           start: context.start,
           end: context.end,
         },
-        sort: "time-asc-key-asc",
+        sort: "time-asc-sequence-asc-key-asc",
       }),
     )
     .digest("hex");
@@ -40,16 +42,36 @@ export function decodeCursor(encodedCursor: string): LogsCursor {
   return logsCursorSchema.parse(JSON.parse(decoded) as unknown);
 }
 
-export function createCursorFromRow(options: {
+export function parseCursorInput(
+  cursorInput: string | LogsCursor,
+  mode: CursorTransportMode,
+): LogsCursor {
+  if (mode === "json") {
+    return logsCursorSchema.parse(cursorInput);
+  }
+
+  if (typeof cursorInput !== "string") {
+    throw new Error("Cursor must be an encoded string");
+  }
+
+  return decodeCursor(cursorInput);
+}
+
+export function serializeCursor(
+  cursor: LogsCursor,
+  mode: CursorTransportMode,
+): string | LogsCursor {
+  const parsedCursor = logsCursorSchema.parse(cursor);
+  return mode === "json" ? parsedCursor : encodeCursor(parsedCursor);
+}
+
+export function buildCursorFromRow(options: {
   direction: "older" | "newer";
   row: LogRow;
   queryHash: string;
   window: { start: string; end: string };
-}): string {
-  const keyParts = options.row.key.split(":");
-  const tieBreaker = keyParts[keyParts.length - 1] ?? "";
-
-  return encodeCursor({
+}): LogsCursor {
+  return logsCursorSchema.parse({
     v: 1,
     dir: options.direction,
     queryHash: options.queryHash,
@@ -57,7 +79,17 @@ export function createCursorFromRow(options: {
     anchor: {
       time: options.row.time,
       streamId: options.row.streamId,
-      tieBreaker,
+      tieBreaker: options.row.tieBreaker,
+      sequence: extractLogSequence(options.row.message) ?? undefined,
     },
   });
+}
+
+export function createCursorFromRow(options: {
+  direction: "older" | "newer";
+  row: LogRow;
+  queryHash: string;
+  window: { start: string; end: string };
+}): string {
+  return encodeCursor(buildCursorFromRow(options));
 }
