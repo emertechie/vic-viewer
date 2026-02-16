@@ -58,13 +58,6 @@ const logProfileFieldSchema = z
       return;
     }
 
-    if (!value.title) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Field entries must define 'title' unless they are special types",
-      });
-    }
-
     if (!hasSingleField && !hasFallbackFields) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

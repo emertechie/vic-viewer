@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { LogProfile } from "../schemas/logProfiles";
 import type { VictoriaLogsClient } from "../vicstack/victoriaLogsClient";
 import {
   logsQueryRequestSchema,
@@ -43,29 +44,41 @@ function resolveRequestWindow(request: LogsQueryRequest, cursor: LogsCursor | nu
   };
 }
 
-function applyCursorFilter(rows: LogRow[], cursor: LogsCursor | null): LogRow[] {
+function applyCursorFilter(
+  rows: LogRow[],
+  cursor: LogsCursor | null,
+  activeLogProfile: LogProfile,
+): LogRow[] {
   if (!cursor) {
     return rows;
   }
 
   if (cursor.dir === "older") {
     return rows.filter((row) =>
-      isBeforeAnchor(row, {
-        time: cursor.anchor.time,
-        streamId: cursor.anchor.streamId,
-        tieBreaker: cursor.anchor.tieBreaker,
-        sequence: cursor.anchor.sequence,
-      }),
+      isBeforeAnchor(
+        row,
+        {
+          time: cursor.anchor.time,
+          streamId: cursor.anchor.streamId,
+          tieBreaker: cursor.anchor.tieBreaker,
+          sequence: cursor.anchor.sequence,
+        },
+        activeLogProfile,
+      ),
     );
   }
 
   return rows.filter((row) =>
-    isAfterAnchor(row, {
-      time: cursor.anchor.time,
-      streamId: cursor.anchor.streamId,
-      tieBreaker: cursor.anchor.tieBreaker,
-      sequence: cursor.anchor.sequence,
-    }),
+    isAfterAnchor(
+      row,
+      {
+        time: cursor.anchor.time,
+        streamId: cursor.anchor.streamId,
+        tieBreaker: cursor.anchor.tieBreaker,
+        sequence: cursor.anchor.sequence,
+      },
+      activeLogProfile,
+    ),
   );
 }
 
@@ -114,9 +127,14 @@ function assertValidCursorContext(
 
 export function registerLogsRoutes(
   app: FastifyInstance,
-  options: { victoriaLogsClient: VictoriaLogsClient; cursorTransportMode: CursorTransportMode },
+  options: {
+    victoriaLogsClient: VictoriaLogsClient;
+    cursorTransportMode: CursorTransportMode;
+    getActiveLogProfile: () => LogProfile;
+  },
 ) {
   app.post("/api/logs/query", async (request, reply) => {
+    const activeLogProfile = options.getActiveLogProfile();
     const parsedRequest = logsQueryRequestSchema.parse(request.body);
     const normalizedRequest = {
       ...parsedRequest,
@@ -128,6 +146,10 @@ export function registerLogsRoutes(
       query: normalizedRequest.query,
       start: normalizedRequest.start,
       end: normalizedRequest.end,
+      profile: {
+        id: activeLogProfile.id,
+        version: activeLogProfile.version,
+      },
     });
 
     let cursor: LogsCursor | null = null;
@@ -164,6 +186,10 @@ export function registerLogsRoutes(
         resolvedWindow: window,
         decodedCursor: cursor,
         cursorTransportMode: options.cursorTransportMode,
+        activeLogProfile: {
+          id: activeLogProfile.id,
+          version: activeLogProfile.version,
+        },
       },
       "Received logs query request",
     );
@@ -203,10 +229,13 @@ export function registerLogsRoutes(
     }
 
     const rows = applyCursorFilter(
-      rawRecords.map(normalizeLogRecord).filter((row): row is LogRow => Boolean(row)),
+      rawRecords
+        .map((record) => normalizeLogRecord(record, activeLogProfile))
+        .filter((row): row is LogRow => Boolean(row)),
       cursor,
+      activeLogProfile,
     )
-      .sort(compareLogRows)
+      .sort((left, right) => compareLogRows(left, right, activeLogProfile))
       .slice(0, normalizedRequest.limit);
 
     const oldestRow = rows[0];
@@ -229,6 +258,7 @@ export function registerLogsRoutes(
                 buildCursorFromRow({
                   direction: "older",
                   row: oldestRow,
+                  profile: activeLogProfile,
                   queryHash,
                   window: {
                     start: normalizedRequest.start,
@@ -244,6 +274,7 @@ export function registerLogsRoutes(
                 buildCursorFromRow({
                   direction: "newer",
                   row: newestRow,
+                  profile: activeLogProfile,
                   queryHash,
                   window: {
                     start: normalizedRequest.start,
