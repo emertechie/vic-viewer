@@ -1,9 +1,5 @@
 import { logsQueryResponseSchema, type LogsQueryRequest, type LogsQueryResponse } from "./types";
-
-type ApiError = {
-  code?: string;
-  message?: string;
-};
+import { errorResponseSchema } from "../../../../shared/schemas/errors";
 
 export async function fetchLogsQuery(request: LogsQueryRequest): Promise<LogsQueryResponse> {
   const response = await fetch("/api/logs/query", {
@@ -15,14 +11,17 @@ export async function fetchLogsQuery(request: LogsQueryRequest): Promise<LogsQue
   });
 
   if (!response.ok) {
-    let apiError: ApiError = {};
+    let apiErrorMessage = "Failed to query logs";
     try {
-      apiError = (await response.json()) as ApiError;
+      const apiError = errorResponseSchema.safeParse(await response.json());
+      if (apiError.success) {
+        apiErrorMessage = apiError.data.message;
+      }
     } catch {
       // no-op: fallback error below
     }
 
-    throw new Error(apiError.message ?? "Failed to query logs");
+    throw new Error(apiErrorMessage);
   }
 
   return logsQueryResponseSchema.parse(await response.json());

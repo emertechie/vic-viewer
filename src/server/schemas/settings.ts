@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { relativeRangeSchema } from "../../shared/schemas/settings";
 
 export const rowDensitySchema = z.enum(["comfortable", "compact"]);
-export const relativeRangeSchema = z.enum(["5m", "15m", "1h", "6h", "24h"]);
+export { relativeRangeSchema };
 
 export const logsViewSettingsSchema = z.object({
   defaultLiveEnabled: z.boolean(),
