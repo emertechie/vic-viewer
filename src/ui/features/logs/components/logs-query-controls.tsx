@@ -1,6 +1,10 @@
 import * as React from "react";
+import { Play, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
 import { buildRelativeWindow } from "../state/search";
+
+const WILDCARD_QUERY = "*";
 
 function toLocalDateTimeValue(isoTimestamp: string): string {
   const date = new Date(isoTimestamp);
@@ -16,6 +20,11 @@ function fromLocalDateTimeValue(localDateTime: string): string {
   return new Date(localDateTime).toISOString();
 }
 
+function normalizeQuery(value: string): string {
+  const trimmed = value.trim();
+  return trimmed || WILDCARD_QUERY;
+}
+
 export function LogsQueryControls(props: {
   search: LogsSearch;
   onApplySearch: (nextSearch: LogsSearch) => void;
@@ -27,6 +36,32 @@ export function LogsQueryControls(props: {
     toLocalDateTimeValue(props.search.start),
   );
   const [absoluteEnd, setAbsoluteEnd] = React.useState(toLocalDateTimeValue(props.search.end));
+  const appliedAbsoluteStart = toLocalDateTimeValue(props.search.start);
+  const appliedAbsoluteEnd = toLocalDateTimeValue(props.search.end);
+  const hasUnappliedChanges = React.useMemo(() => {
+    if (normalizeQuery(queryText) !== normalizeQuery(props.search.q)) {
+      return true;
+    }
+
+    if (range !== props.search.range) {
+      return true;
+    }
+
+    if (range === "absolute") {
+      return absoluteStart !== appliedAbsoluteStart || absoluteEnd !== appliedAbsoluteEnd;
+    }
+
+    return false;
+  }, [
+    absoluteEnd,
+    absoluteStart,
+    appliedAbsoluteEnd,
+    appliedAbsoluteStart,
+    props.search.q,
+    props.search.range,
+    queryText,
+    range,
+  ]);
 
   React.useEffect(() => {
     setQueryText(props.search.q);
@@ -40,9 +75,9 @@ export function LogsQueryControls(props: {
       event.preventDefault();
 
       const trimmedQuery = queryText.trim();
-      const nextQuery = trimmedQuery || "*";
-      if (!trimmedQuery && queryText !== "*") {
-        setQueryText("*");
+      const nextQuery = normalizeQuery(queryText);
+      if (!trimmedQuery && queryText !== WILDCARD_QUERY) {
+        setQueryText(WILDCARD_QUERY);
       }
 
       if (range === "absolute") {
@@ -72,6 +107,26 @@ export function LogsQueryControls(props: {
     [absoluteEnd, absoluteStart, props, queryText, range],
   );
 
+  const clearQueryToWildcard = React.useCallback(() => {
+    setQueryText(WILDCARD_QUERY);
+  }, []);
+
+  const runQueryButton = (
+    <button
+      type="submit"
+      className="relative inline-flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+    >
+      <Play className="h-3.5 w-3.5" aria-hidden />
+      Run Query
+      {hasUnappliedChanges ? (
+        <span
+          className="absolute right-1 top-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 ring-2 ring-card"
+          aria-hidden
+        />
+      ) : null}
+    </button>
+  );
+
   return (
     <form
       onSubmit={applySearch}
@@ -81,13 +136,23 @@ export function LogsQueryControls(props: {
         <label htmlFor="logs-query" className="mb-1 block text-xs text-muted-foreground">
           LogsQL
         </label>
-        <input
-          id="logs-query"
-          value={queryText}
-          onChange={(event) => setQueryText(event.currentTarget.value)}
-          placeholder="*"
-          className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
-        />
+        <div className="relative">
+          <input
+            id="logs-query"
+            value={queryText}
+            onChange={(event) => setQueryText(event.currentTarget.value)}
+            placeholder={WILDCARD_QUERY}
+            className="h-9 w-full rounded-md border border-input bg-card pl-3 pr-9 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
+          />
+          <button
+            type="button"
+            onClick={clearQueryToWildcard}
+            aria-label='Clear query to "*"'
+            className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
       <div className="w-28">
         <label htmlFor="logs-range" className="mb-1 block text-xs text-muted-foreground">
@@ -149,12 +214,18 @@ export function LogsQueryControls(props: {
       >
         {props.search.live === "1" ? "Live On" : "Live Off"}
       </button>
-      <button
-        type="submit"
-        className="h-9 rounded-md border border-primary/70 bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        Run Query
-      </button>
+      {hasUnappliedChanges ? (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>{runQueryButton}</TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              Run query to apply changes
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        runQueryButton
+      )}
     </form>
   );
 }

@@ -270,7 +270,7 @@ export function LogsTable(props: {
           {props.errorMessage}
         </div>
       ) : null}
-      <div className="grid shrink-0 grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground">
+      <div className="grid shrink-0 grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-muted/30">
         {table.getHeaderGroups().map((headerGroup) =>
           headerGroup.headers.map((header) => (
             <div key={header.id} className="truncate px-1">
