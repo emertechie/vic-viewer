@@ -5,6 +5,7 @@ import {
   type LogsCursor,
   type LogsQueryRequest,
 } from "../schemas/logs";
+import { extractLogSequence } from "./normalize";
 
 export type CursorQueryContext = Pick<LogsQueryRequest, "query" | "start" | "end">;
 export type CursorTransportMode = "encoded" | "json";
@@ -18,7 +19,7 @@ export function buildQueryHash(context: CursorQueryContext): string {
           start: context.start,
           end: context.end,
         },
-        sort: "time-asc-key-asc",
+        sort: "time-asc-sequence-asc-key-asc",
       }),
     )
     .digest("hex");
@@ -79,6 +80,7 @@ export function buildCursorFromRow(options: {
       time: options.row.time,
       streamId: options.row.streamId,
       tieBreaker: options.row.tieBreaker,
+      sequence: extractLogSequence(options.row.message) ?? undefined,
     },
   });
 }

@@ -16,6 +16,7 @@ export const logsCursorSchema = z.object({
     time: isoDateTimeSchema,
     streamId: z.string().nullable(),
     tieBreaker: z.string(),
+    sequence: z.number().int().positive().optional(),
   }),
 });
 

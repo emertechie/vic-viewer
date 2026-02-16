@@ -54,6 +54,7 @@ function applyCursorFilter(rows: LogRow[], cursor: LogsCursor | null): LogRow[] 
         time: cursor.anchor.time,
         streamId: cursor.anchor.streamId,
         tieBreaker: cursor.anchor.tieBreaker,
+        sequence: cursor.anchor.sequence,
       }),
     );
   }
@@ -63,6 +64,7 @@ function applyCursorFilter(rows: LogRow[], cursor: LogsCursor | null): LogRow[] 
       time: cursor.anchor.time,
       streamId: cursor.anchor.streamId,
       tieBreaker: cursor.anchor.tieBreaker,
+      sequence: cursor.anchor.sequence,
     }),
   );
 }

@@ -3,6 +3,7 @@ import type { VictoriaLogsClient } from "./victoriaLogsClient";
 
 const SEVERITIES = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR"] as const;
 const SERVICES = ["api", "worker", "scheduler", "frontend", "billing", "search"] as const;
+const TIMELINE_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 
 type FakeLogsProfile = "steady" | "bursty" | "noisy";
 
@@ -63,30 +64,6 @@ function resolveCadenceMs(ageMs: number, profile: FakeLogsProfile): number {
   }
 
   return 5 * 60 * 1000;
-}
-
-function resolveAdaptiveCadenceCapMs(options: {
-  startMs: number;
-  endMs: number;
-  limit: number;
-  cursorDirection?: "older" | "newer";
-}): number | null {
-  if (options.cursorDirection) {
-    return null;
-  }
-
-  const historicalWindow = options.endMs < Date.now() - 60_000;
-  if (!historicalWindow) {
-    return null;
-  }
-
-  const durationMs = options.endMs - options.startMs;
-  if (durationMs <= 0) {
-    return null;
-  }
-
-  const targetTicks = Math.max(options.limit * 2, options.limit + 1);
-  return Math.max(1_000, Math.floor(durationMs / targetTicks));
 }
 
 function resolveRecordsPerTick(profile: FakeLogsProfile, seed: string): number {
@@ -168,10 +145,10 @@ function generateRecords(options: {
   query: string;
   startMs: number;
   endMs: number;
-  nowMs: number;
+  referenceNowMs: number;
+  timelineStartMs: number;
   profile: FakeLogsProfile;
   seed: string;
-  cadenceCapMs?: number;
 }): FakeLogRecord[] {
   if (options.endMs <= options.startMs) {
     return [];
@@ -179,14 +156,11 @@ function generateRecords(options: {
 
   const records: FakeLogRecord[] = [];
   let sequence = 0;
-  let tickMs = options.startMs;
+  let tickMs = options.timelineStartMs;
 
   while (tickMs <= options.endMs) {
-    const ageMs = Math.max(0, options.nowMs - tickMs);
-    const cadenceMs =
-      options.cadenceCapMs === undefined
-        ? resolveCadenceMs(ageMs, options.profile)
-        : Math.min(resolveCadenceMs(ageMs, options.profile), options.cadenceCapMs);
+    const ageMs = Math.max(0, options.referenceNowMs - tickMs);
+    const cadenceMs = resolveCadenceMs(ageMs, options.profile);
     const count = resolveRecordsPerTick(options.profile, `${options.seed}:count:${tickMs}`);
 
     for (let index = 0; index < count; index += 1) {
@@ -200,10 +174,7 @@ function generateRecords(options: {
         options.profile === "noisy"
           ? Math.floor(hashToUnitInterval(`${streamSeed}:jitter`) * 400) - 200
           : 0;
-      const timestampMs = Math.max(
-        options.startMs,
-        Math.min(options.endMs, tickMs + timestampJitterMs),
-      );
+      const timestampMs = tickMs + timestampJitterMs;
       const traceId = createHash("sha1").update(`${streamSeed}:trace`).digest("hex").slice(0, 32);
       const spanId = createHash("sha1").update(`${streamSeed}:span`).digest("hex").slice(0, 16);
       const message = buildMessage({
@@ -229,7 +200,11 @@ function generateRecords(options: {
         },
       };
 
-      if (queryMatches(record, options.query)) {
+      if (
+        record.timestampMs >= options.startMs &&
+        record.timestampMs <= options.endMs &&
+        queryMatches(record, options.query)
+      ) {
         records.push(record);
       }
     }
@@ -244,6 +219,9 @@ export function createFakeVictoriaLogsClient(options: {
   profile: FakeLogsProfile;
   seed: string;
 }): VictoriaLogsClient {
+  const referenceNowMs = Date.now();
+  const timelineStartMs = referenceNowMs - TIMELINE_LOOKBACK_MS;
+
   return {
     async queryRaw(request) {
       const startMs = toMillis(request.start);
@@ -256,16 +234,10 @@ export function createFakeVictoriaLogsClient(options: {
         query: request.query,
         startMs,
         endMs,
-        nowMs: Date.now(),
+        referenceNowMs,
+        timelineStartMs,
         profile: options.profile,
         seed: options.seed,
-        cadenceCapMs:
-          resolveAdaptiveCadenceCapMs({
-            startMs,
-            endMs,
-            limit: request.limit,
-            cursorDirection: request.cursorDirection,
-          }) ?? undefined,
       }).sort((left, right) => {
         if (left.timestampMs !== right.timestampMs) {
           return right.timestampMs - left.timestampMs;
@@ -287,7 +259,7 @@ export function createFakeVictoriaLogsClient(options: {
           return sortedRecords.slice(sortedRecords.length - request.limit);
         }
 
-        const historicalWindow = endMs < Date.now() - 60_000;
+        const historicalWindow = endMs < referenceNowMs - 60_000;
         if (historicalWindow) {
           const middleStart = Math.floor((sortedRecords.length - request.limit) / 2);
           return sortedRecords.slice(middleStart, middleStart + request.limit);
