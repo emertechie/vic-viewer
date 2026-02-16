@@ -71,6 +71,31 @@ function clampLimit(limit: number): number {
   return Math.max(1, Math.min(limit, 500));
 }
 
+function describePayloadShape(payload: unknown): Record<string, unknown> {
+  if (Array.isArray(payload)) {
+    return {
+      payloadType: "array",
+      payloadLength: payload.length,
+    };
+  }
+
+  if (payload === null) {
+    return { payloadType: "null" };
+  }
+
+  if (typeof payload === "object") {
+    return {
+      payloadType: "object",
+      payloadKeys: Object.keys(payload as Record<string, unknown>).slice(0, 20),
+    };
+  }
+
+  return {
+    payloadType: typeof payload,
+    payloadValue: payload,
+  };
+}
+
 function assertValidCursorContext(
   cursor: LogsCursor,
   request: LogsQueryRequest,
@@ -149,10 +174,34 @@ export function registerLogsRoutes(
       cursorDirection: cursor?.dir,
     });
 
+    const rawRecords = extractRawLogRecords(rawPayload);
+    if (!Array.isArray(rawPayload)) {
+      request.log.warn(
+        {
+          route: "/api/logs/query",
+          request: normalizedRequest,
+          queryHash,
+          ...describePayloadShape(rawPayload),
+        },
+        "Logs payload could not be parsed: expected top-level array",
+      );
+    } else if (rawRecords.length !== rawPayload.length) {
+      request.log.warn(
+        {
+          route: "/api/logs/query",
+          request: normalizedRequest,
+          queryHash,
+          payloadType: "array",
+          payloadLength: rawPayload.length,
+          parsedRecordCount: rawRecords.length,
+          droppedEntries: rawPayload.length - rawRecords.length,
+        },
+        "Logs payload contained non-object entries and was partially ignored",
+      );
+    }
+
     const rows = applyCursorFilter(
-      extractRawLogRecords(rawPayload)
-        .map(normalizeLogRecord)
-        .filter((row): row is LogRow => Boolean(row)),
+      rawRecords.map(normalizeLogRecord).filter((row): row is LogRow => Boolean(row)),
       cursor,
     )
       .sort(compareLogRows)
