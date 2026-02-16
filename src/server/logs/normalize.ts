@@ -3,6 +3,28 @@ import { logRowSchema, type LogRow } from "../schemas/logs";
 
 type RawLogRecord = Record<string, unknown>;
 
+type LogRowKeyParts = {
+  streamId: string | null;
+  time: string;
+  tieBreaker: string;
+};
+
+function isRawLogRecord(value: unknown): value is RawLogRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function toRawLogRecordArray(value: unknown): RawLogRecord[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value.filter(isRawLogRecord);
+}
+
+function buildLogRowKey(parts: LogRowKeyParts): string {
+  return `${parts.streamId ?? "unknown"}:${parts.time}:${parts.tieBreaker}`;
+}
+
 function getNullableString(record: RawLogRecord, key: string): string | null {
   const value = record[key];
   if (typeof value !== "string") {
@@ -58,7 +80,11 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
   });
 
   return logRowSchema.parse({
-    key: `${streamId ?? "unknown"}:${time}:${tieBreaker}`,
+    key: buildLogRowKey({
+      streamId,
+      time,
+      tieBreaker,
+    }),
     time,
     message,
     streamId,
@@ -72,10 +98,9 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
 }
 
 export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
-  if (Array.isArray(payload)) {
-    return payload.filter(
-      (value): value is RawLogRecord => typeof value === "object" && value !== null,
-    );
+  const directRecords = toRawLogRecordArray(payload);
+  if (directRecords) {
+    return directRecords;
   }
 
   if (typeof payload !== "object" || payload === null) {
@@ -83,19 +108,15 @@ export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
   }
 
   const asObject = payload as Record<string, unknown>;
-  const candidates = [asObject.hits, asObject.logs, asObject.data];
 
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) {
-      continue;
-    }
-
-    return candidate.filter(
-      (value): value is RawLogRecord => typeof value === "object" && value !== null,
-    );
-  }
-
-  return [];
+  // Keep these wrappers for compatibility with alternate/legacy payload shims.
+  // The direct VictoriaLogs path usually yields an array directly.
+  return (
+    toRawLogRecordArray(asObject.hits) ??
+    toRawLogRecordArray(asObject.logs) ??
+    toRawLogRecordArray(asObject.data) ??
+    []
+  );
 }
 
 export function compareLogRows(left: LogRow, right: LogRow): number {
@@ -121,7 +142,7 @@ export function isBeforeAnchor(
   candidate: LogRow,
   anchor: { time: string; streamId: string | null; tieBreaker: string },
 ): boolean {
-  const anchorKey = `${anchor.streamId ?? "unknown"}:${anchor.time}:${anchor.tieBreaker}`;
+  const anchorKey = buildLogRowKey(anchor);
 
   if (candidate.time < anchor.time) {
     return true;
@@ -138,7 +159,7 @@ export function isAfterAnchor(
   candidate: LogRow,
   anchor: { time: string; streamId: string | null; tieBreaker: string },
 ): boolean {
-  const anchorKey = `${anchor.streamId ?? "unknown"}:${anchor.time}:${anchor.tieBreaker}`;
+  const anchorKey = buildLogRowKey(anchor);
 
   if (candidate.time > anchor.time) {
     return true;
