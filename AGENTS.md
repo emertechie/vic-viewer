@@ -10,6 +10,7 @@ For more context, make sure you read:
 - After code changes, run `npm run typecheck` to ensure no new type errors introduced
 - Always run `npm run format` to format new or updated files
 - Add code comments when the purpose of the some pirce of code or logic may not be easily understood by future human readers. But DON'T add comments for trivial things.
+- For schemas/types used by both server and client, define the canonical Zod schema in `src/shared/schemas/*` and import/re-export it from server/UI modules instead of duplicating definitions.
 
 # React
 

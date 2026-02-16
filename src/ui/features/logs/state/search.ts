@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { relativeRangeSchema } from "../../../../shared/schemas/settings";
 
-export const relativeRangeSchema = z.enum(["5m", "15m", "1h", "6h", "24h"]);
+export { relativeRangeSchema };
 export const logsRangeSchema = z.union([relativeRangeSchema, z.literal("absolute")]);
 const liveModeSchema = z.enum(["0", "1"]);
 
