@@ -32,6 +32,7 @@ export const logsQueryRequestSchema = z.object({
 export const logRowSchema = z.object({
   key: z.string().min(1),
   time: isoDateTimeSchema,
+  tieBreaker: z.string().min(1),
   message: z.string(),
   streamId: z.string().nullable(),
   stream: z.string().nullable(),

@@ -25,6 +25,14 @@ function buildLogRowKey(parts: LogRowKeyParts): string {
   return `${parts.streamId ?? "unknown"}:${parts.time}:${parts.tieBreaker}`;
 }
 
+function buildLogRowKeyFromRow(row: Pick<LogRow, "streamId" | "time" | "tieBreaker">): string {
+  return buildLogRowKey({
+    streamId: row.streamId,
+    time: row.time,
+    tieBreaker: row.tieBreaker,
+  });
+}
+
 function getNullableString(record: RawLogRecord, key: string): string | null {
   const value = record[key];
   if (typeof value !== "string") {
@@ -86,6 +94,7 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
       tieBreaker,
     }),
     time,
+    tieBreaker,
     message,
     streamId,
     stream,
@@ -117,7 +126,7 @@ export function compareLogRows(left: LogRow, right: LogRow): number {
     }
   }
 
-  return left.key.localeCompare(right.key);
+  return buildLogRowKeyFromRow(left).localeCompare(buildLogRowKeyFromRow(right));
 }
 
 export function isBeforeAnchor(
@@ -125,6 +134,7 @@ export function isBeforeAnchor(
   anchor: { time: string; streamId: string | null; tieBreaker: string },
 ): boolean {
   const anchorKey = buildLogRowKey(anchor);
+  const candidateKey = buildLogRowKeyFromRow(candidate);
 
   if (candidate.time < anchor.time) {
     return true;
@@ -134,7 +144,7 @@ export function isBeforeAnchor(
     return false;
   }
 
-  return candidate.key < anchorKey;
+  return candidateKey < anchorKey;
 }
 
 export function isAfterAnchor(
@@ -142,6 +152,7 @@ export function isAfterAnchor(
   anchor: { time: string; streamId: string | null; tieBreaker: string },
 ): boolean {
   const anchorKey = buildLogRowKey(anchor);
+  const candidateKey = buildLogRowKeyFromRow(candidate);
 
   if (candidate.time > anchor.time) {
     return true;
@@ -151,5 +162,5 @@ export function isAfterAnchor(
     return false;
   }
 
-  return candidate.key > anchorKey;
+  return candidateKey > anchorKey;
 }

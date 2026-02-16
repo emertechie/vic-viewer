@@ -3,6 +3,7 @@ import { z } from "zod";
 export const logRowSchema = z.object({
   key: z.string(),
   time: z.string(),
+  tieBreaker: z.string(),
   message: z.string(),
   streamId: z.string().nullable(),
   stream: z.string().nullable(),

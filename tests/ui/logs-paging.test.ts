@@ -10,6 +10,7 @@ function makeRow(key: string, time: string): LogRow {
   return {
     key,
     time,
+    tieBreaker: `${key}-tie`,
     message: key,
     streamId: "s1",
     stream: null,

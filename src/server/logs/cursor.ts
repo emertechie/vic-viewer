@@ -70,9 +70,6 @@ export function buildCursorFromRow(options: {
   queryHash: string;
   window: { start: string; end: string };
 }): LogsCursor {
-  const keyParts = options.row.key.split(":");
-  const tieBreaker = keyParts[keyParts.length - 1] ?? "";
-
   return logsCursorSchema.parse({
     v: 1,
     dir: options.direction,
@@ -81,7 +78,7 @@ export function buildCursorFromRow(options: {
     anchor: {
       time: options.row.time,
       streamId: options.row.streamId,
-      tieBreaker,
+      tieBreaker: options.row.tieBreaker,
     },
   });
 }
