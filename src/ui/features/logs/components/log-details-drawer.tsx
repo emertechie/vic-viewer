@@ -18,6 +18,25 @@ function DrawerEmptyState(props: { selectedKey?: string }) {
   );
 }
 
+function DrawerNavigationButton(props: {
+  ariaLabel: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={props.ariaLabel}
+      onClick={props.onClick}
+      disabled={props.disabled}
+      className="inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card text-foreground transition-opacity enabled:hover:bg-accent disabled:opacity-45"
+    >
+      {props.children}
+    </button>
+  );
+}
+
 export function LogDetailsDrawer(props: {
   row: LogRow | null;
   activeProfile: LogProfile;
@@ -75,24 +94,20 @@ export function LogDetailsDrawer(props: {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 text-muted-foreground">
-              <button
-                type="button"
-                aria-label="Show previous log"
+              <DrawerNavigationButton
+                ariaLabel="Show previous log"
                 onClick={props.onSelectPrevious}
                 disabled={!props.canSelectPrevious}
-                className="inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card text-foreground transition-opacity enabled:hover:bg-accent disabled:opacity-45"
               >
                 <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-              </button>
-              <button
-                type="button"
-                aria-label="Show next log"
+              </DrawerNavigationButton>
+              <DrawerNavigationButton
+                ariaLabel="Show next log"
                 onClick={props.onSelectNext}
                 disabled={!props.canSelectNext}
-                className="inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card text-foreground transition-opacity enabled:hover:bg-accent disabled:opacity-45"
               >
                 <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-              </button>
+              </DrawerNavigationButton>
             </div>
             <button
               type="button"
