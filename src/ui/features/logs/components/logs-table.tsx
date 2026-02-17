@@ -164,7 +164,7 @@ function getGridTemplateColumns(columns: LogsTableColumn[]): string {
 
       return "minmax(180px,1fr)";
     })
-    .join("_");
+    .join(" ");
 }
 
 export function LogsTable(props: {
@@ -432,7 +432,7 @@ export function LogsTable(props: {
                   key={row.id}
                   type="button"
                   onClick={() => props.onSelectRow?.(row.original)}
-                  className={rowClassName}
+                  className={`appearance-none bg-transparent text-left ${rowClassName}`}
                   style={rowStyle}
                 >
                   {rowCells}
