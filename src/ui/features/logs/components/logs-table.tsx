@@ -16,16 +16,15 @@ type LogsTableColumn = {
   hidden?: boolean;
   field?: string;
   fields?: string[];
-  legacyAccessor?: keyof LogRow;
 };
 
 const fallbackColumns: LogsTableColumn[] = [
-  { id: "time", title: "Time", legacyAccessor: "time" },
-  { id: "severity", title: "Level", legacyAccessor: "severity" },
-  { id: "service-name", title: "Service", legacyAccessor: "serviceName" },
-  { id: "message", title: "Message", legacyAccessor: "message" },
-  { id: "trace-id", title: "TraceId", legacyAccessor: "traceId" },
-  { id: "span-id", title: "SpanId", legacyAccessor: "spanId" },
+  { id: "time", title: "Time", field: "_time" },
+  { id: "severity", title: "Level", fields: ["severity", "SeverityText"] },
+  { id: "service-name", title: "Service", field: "service.name" },
+  { id: "message", title: "Message", field: "_msg" },
+  { id: "trace-id", title: "TraceId", fields: ["trace_id", "TraceId"] },
+  { id: "span-id", title: "SpanId", fields: ["span_id", "SpanId"] },
 ];
 
 const ROW_ESTIMATE_PX = 34;
@@ -44,16 +43,14 @@ function extractSequence(message: string): number | null {
 }
 
 function resolveMessageForRow(row: LogRow, activeProfile: LogProfile | null): string {
-  if (!activeProfile) {
-    return row.message;
-  }
-
   return (
     resolveCoreFieldDisplayText({
       record: row.raw,
       profile: activeProfile,
       coreField: "message",
-    }) ?? row.message
+    }) ??
+    resolveFieldDisplayText(row.raw, { field: "_msg" }) ??
+    ""
   );
 }
 
@@ -213,10 +210,6 @@ export function LogsTable(props: {
             field: column.field,
             fields: column.fields,
           });
-        }
-
-        if (column.legacyAccessor) {
-          return row[column.legacyAccessor] ?? null;
         }
 
         return null;

@@ -68,11 +68,14 @@ describe("logs query API", () => {
     expect(body.rows).toHaveLength(1);
     expect(body.rows[0]).toMatchObject({
       time: "2026-02-14T19:25:34.660Z",
-      serviceName: "ProcureHub.BlazorApp",
-      severity: "Information",
-      traceId: "ae301d04af9409e9d0045e81ae1eb77c",
-      spanId: "57675a26d8b5a3fb",
+      raw: expect.objectContaining({
+        "service.name": "ProcureHub.BlazorApp",
+        severity: "Information",
+        trace_id: "ae301d04af9409e9d0045e81ae1eb77c",
+        span_id: "57675a26d8b5a3fb",
+      }),
     });
+    expect(body.rows[0]?.message).toBeUndefined();
     expect(body.pageInfo.olderCursor).toBeTruthy();
     expect(body.pageInfo.newerCursor).toBeTruthy();
   });
@@ -176,7 +179,7 @@ describe("logs query API", () => {
       expect(initialResponse.statusCode).toBe(200);
       const initialBody = initialResponse.json();
       expect(initialBody.rows).toHaveLength(1);
-      expect(initialBody.rows[0]?.message).toContain("SEQ:000000001");
+      expect(initialBody.rows[0]?.raw?._msg).toContain("SEQ:000000001");
       expect(initialBody.pageInfo.newerCursor).toBeTruthy();
 
       const newerResponse = await sequenceApp.inject({
@@ -194,7 +197,7 @@ describe("logs query API", () => {
       expect(newerResponse.statusCode).toBe(200);
       const newerBody = newerResponse.json();
       expect(newerBody.rows).toHaveLength(1);
-      expect(newerBody.rows[0]?.message).toContain("SEQ:000000002");
+      expect(newerBody.rows[0]?.raw?._msg).toContain("SEQ:000000002");
     } finally {
       await sequenceApp.close();
     }

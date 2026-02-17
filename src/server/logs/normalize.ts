@@ -33,9 +33,12 @@ function buildLogRowKey(parts: LogRowKeyParts): string {
   return `${parts.streamId ?? "unknown"}:${parts.time}:${parts.tieBreaker}`;
 }
 
-function buildLogRowKeyFromRow(row: Pick<LogRow, "streamId" | "time" | "tieBreaker">): string {
+function buildLogRowKeyFromRow(
+  row: Pick<LogRow, "time" | "tieBreaker" | "raw">,
+  profile: LogProfile,
+): string {
   return buildLogRowKey({
-    streamId: row.streamId,
+    streamId: extractStreamIdFromRow(row, profile),
     time: row.time,
     tieBreaker: row.tieBreaker,
   });
@@ -68,7 +71,7 @@ function toNonEmptyText(value: unknown): string | null {
   return null;
 }
 
-function resolveProfileFieldText(
+export function resolveProfileFieldText(
   record: RawLogRecord,
   selector: ProfileFieldSelector | undefined,
 ): string | null {
@@ -93,7 +96,7 @@ function resolveProfileFieldText(
 function buildSortTargetFromRow(row: LogRow, profile: LogProfile): SortTarget {
   return {
     time: row.time,
-    key: buildLogRowKeyFromRow(row),
+    key: buildLogRowKeyFromRow(row, profile),
     sequence: extractLogSequenceFromRow(row, profile),
   };
 }
@@ -151,13 +154,7 @@ export function normalizeLogRecord(record: RawLogRecord, profile: LogProfile): L
     return null;
   }
 
-  const message = resolveProfileFieldText(record, profile.coreFields.message) ?? "";
   const streamId = resolveProfileFieldText(record, profile.coreFields.streamId);
-  const stream = resolveProfileFieldText(record, profile.coreFields.stream);
-  const severity = resolveProfileFieldText(record, profile.coreFields.severity);
-  const serviceName = resolveProfileFieldText(record, profile.coreFields.serviceName);
-  const traceId = resolveProfileFieldText(record, profile.coreFields.traceId);
-  const spanId = resolveProfileFieldText(record, profile.coreFields.spanId);
   const tieBreaker = buildTieBreaker(record, profile);
 
   return logRowSchema.parse({
@@ -168,13 +165,6 @@ export function normalizeLogRecord(record: RawLogRecord, profile: LogProfile): L
     }),
     time,
     tieBreaker,
-    message, // TODO: remove
-    streamId, // TODO: remove
-    stream, // TODO: remove
-    severity, // TODO: remove
-    serviceName, // TODO: remove
-    traceId, // TODO: remove
-    spanId, // TODO: remove
     raw: record,
   });
 }
@@ -185,11 +175,14 @@ export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
 
 export function extractLogSequenceFromRow(row: LogRow, profile: LogProfile): number | null {
   const messageFromRaw = resolveProfileFieldText(row.raw, profile.coreFields.message);
-  if (!messageFromRaw) {
-    return extractLogSequence(row.message);
-  }
+  return messageFromRaw ? extractLogSequence(messageFromRaw) : null;
+}
 
-  return extractLogSequence(messageFromRaw);
+export function extractStreamIdFromRow(
+  row: Pick<LogRow, "raw">,
+  profile: LogProfile,
+): string | null {
+  return resolveProfileFieldText(row.raw, profile.coreFields.streamId);
 }
 
 export function compareLogRows(left: LogRow, right: LogRow, profile: LogProfile): number {

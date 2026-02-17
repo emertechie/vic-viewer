@@ -33,24 +33,30 @@ function parseOriginalFormatTokens(originalFormat: string): string[] {
 }
 
 function buildDefaultFieldSets(row: LogRow): DrawerFieldSet[] {
+  const resolve = (field: string) => toDisplayText(row.raw[field]);
+
   return [
     {
       id: "core",
       name: "Core",
       rows: [
         { id: "time", label: "Time", value: row.time },
-        { id: "severity", label: "Severity", value: row.severity },
-        { id: "service", label: "Service", value: row.serviceName },
-        { id: "message", label: "Message", value: row.message },
-        { id: "stream-id", label: "StreamId", value: row.streamId },
+        { id: "severity", label: "Severity", value: resolve("severity") },
+        { id: "service", label: "Service", value: resolve("service.name") },
+        { id: "message", label: "Message", value: resolve("_msg") },
+        { id: "stream-id", label: "StreamId", value: resolve("_stream_id") },
       ],
     },
     {
       id: "trace-span",
       name: "Trace / Span",
       rows: [
-        { id: "trace-id", label: "TraceId", value: row.traceId },
-        { id: "span-id", label: "SpanId", value: row.spanId },
+        {
+          id: "trace-id",
+          label: "TraceId",
+          value: resolve("trace_id") ?? resolve("TraceId"),
+        },
+        { id: "span-id", label: "SpanId", value: resolve("span_id") ?? resolve("SpanId") },
         {
           id: "request-id",
           label: "RequestId",
@@ -197,16 +203,15 @@ export function LogDetailsDrawer(props: {
       return null;
     }
 
-    if (!props.activeProfile) {
-      return props.row.traceId;
-    }
-
     return (
       resolveCoreFieldDisplayText({
         record: props.row.raw,
-        profile: props.activeProfile,
+        profile: props.activeProfile ?? null,
         coreField: "traceId",
-      }) ?? null
+      }) ??
+      toDisplayText(props.row.raw.trace_id) ??
+      toDisplayText(props.row.raw.TraceId) ??
+      null
     );
   }, [props.activeProfile, props.row]);
   const fieldSets = React.useMemo(() => {

@@ -6,7 +6,7 @@ import {
   type LogsQueryRequest,
 } from "../schemas/logs";
 import type { LogProfile } from "../schemas/logProfiles";
-import { extractLogSequenceFromRow } from "./normalize";
+import { extractLogSequenceFromRow, extractStreamIdFromRow } from "./normalize";
 
 export type CursorQueryContext = Pick<LogsQueryRequest, "query" | "start" | "end"> & {
   profile: Pick<LogProfile, "id" | "version">;
@@ -83,7 +83,7 @@ export function buildCursorFromRow(options: {
     window: options.window,
     anchor: {
       time: options.row.time,
-      streamId: options.row.streamId,
+      streamId: extractStreamIdFromRow(options.row, options.profile),
       tieBreaker: options.row.tieBreaker,
       sequence: extractLogSequenceFromRow(options.row, options.profile) ?? undefined,
     },

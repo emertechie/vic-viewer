@@ -34,13 +34,6 @@ export const logRowSchema = z.object({
   key: z.string().min(1),
   time: isoDateTimeSchema,
   tieBreaker: z.string().min(1),
-  message: z.string(),
-  streamId: z.string().nullable(),
-  stream: z.string().nullable(),
-  severity: z.string().nullable(),
-  serviceName: z.string().nullable(),
-  traceId: z.string().nullable(),
-  spanId: z.string().nullable(),
   raw: z.record(z.string(), z.unknown()),
 });
 
