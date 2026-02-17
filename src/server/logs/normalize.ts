@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { ProfileFieldSelector } from "../schemas/logProfiles";
 import { logRowSchema, type LogRow } from "../schemas/logs";
 import type { LogProfile } from "../schemas/logProfiles";
+import { extractLogSequence } from "../../shared/logs/sequence";
 
 type RawLogRecord = Record<string, unknown>;
 
@@ -42,16 +43,6 @@ function buildLogRowKeyFromRow(
     time: row.time,
     tieBreaker: row.tieBreaker,
   });
-}
-
-export function extractLogSequence(message: string): number | null {
-  const sequenceMatch = message.match(/^SEQ:(\d+)/);
-  if (!sequenceMatch) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(sequenceMatch[1], 10);
-  return Number.isNaN(parsed) ? null : parsed;
 }
 
 function toNonEmptyText(value: unknown): string | null {

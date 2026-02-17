@@ -1,6 +1,7 @@
 import * as React from "react";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { extractLogSequence } from "../../../../shared/logs/sequence";
 import type { LogProfile, LogRow, LogsPageInfo } from "../api/types";
 import { getPageInfoOrDefault } from "../state/paging";
 import {
@@ -20,18 +21,13 @@ type LogsTableColumn = {
 
 const ROW_ESTIMATE_PX = 34;
 const SCROLL_THRESHOLD_PX = 180;
+const BOTTOM_LOCK_THRESHOLD_PX = 24;
+const SUPPRESS_PAGING_WINDOW_MS = 400;
+const FAKE_SEQUENCE_SAMPLE_SIZE = 20;
+const PAGING_NOTICE_TIMEOUT_MS = 1500;
+const TABLE_MIN_WIDTH_PX = 1500;
 
 type SequenceCheckStatus = "pass_full" | "pass_partial" | "fail" | "none";
-
-function extractSequence(message: string): number | null {
-  const match = message.match(/^SEQ:(\d+)/);
-  if (!match) {
-    return null;
-  }
-
-  const sequence = Number.parseInt(match[1], 10);
-  return Number.isNaN(sequence) ? null : sequence;
-}
 
 function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
   return (
@@ -44,12 +40,14 @@ function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
 }
 
 function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile): boolean {
-  const sample = rows.slice(0, 20);
+  const sample = rows.slice(0, FAKE_SEQUENCE_SAMPLE_SIZE);
   if (sample.length === 0) {
     return false;
   }
 
-  return sample.every((row) => extractSequence(resolveMessageForRow(row, activeProfile)) !== null);
+  return sample.every(
+    (row) => extractLogSequence(resolveMessageForRow(row, activeProfile)) !== null,
+  );
 }
 
 function getSequenceCheckStatus(
@@ -68,12 +66,12 @@ function getSequenceCheckStatus(
     return "none";
   }
 
-  const currentSequence = extractSequence(resolveMessageForRow(current, activeProfile));
+  const currentSequence = extractLogSequence(resolveMessageForRow(current, activeProfile));
   const aboveSequence = hasAbove
-    ? extractSequence(resolveMessageForRow(rows[index - 1] as LogRow, activeProfile))
+    ? extractLogSequence(resolveMessageForRow(rows[index - 1] as LogRow, activeProfile))
     : null;
   const belowSequence = hasBelow
-    ? extractSequence(resolveMessageForRow(rows[index + 1] as LogRow, activeProfile))
+    ? extractLogSequence(resolveMessageForRow(rows[index + 1] as LogRow, activeProfile))
     : null;
 
   if (
@@ -107,6 +105,27 @@ function getSequenceRowClasses(status: SequenceCheckStatus): string {
   }
 
   return "hover:bg-muted/40";
+}
+
+function buildRowClassName(options: {
+  sequenceStatus: SequenceCheckStatus;
+  isSelected: boolean;
+  isSelectable: boolean;
+}): string {
+  const classNames = [
+    "absolute left-0 grid w-full border-b border-border/60 px-3 text-xs",
+    getSequenceRowClasses(options.sequenceStatus),
+  ];
+
+  if (options.isSelected) {
+    classNames.push("ring-1 ring-inset ring-primary/60");
+  }
+
+  if (options.isSelectable) {
+    classNames.push("cursor-pointer");
+  }
+
+  return classNames.join(" ");
 }
 
 function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
@@ -243,7 +262,7 @@ export function LogsTable(props: {
       const heightDelta = currentElement.scrollHeight - previousHeight;
       currentElement.scrollTop = previousTop + heightDelta;
     });
-  }, [pageInfo.hasOlder, props]);
+  }, [pageInfo.hasOlder, props.loadingOlder, props.onLoadOlder]);
 
   const loadNewer = React.useCallback(async () => {
     if (!pageInfo.hasNewer || props.loadingNewer) {
@@ -251,7 +270,7 @@ export function LogsTable(props: {
     }
 
     await props.onLoadNewer();
-  }, [pageInfo.hasNewer, props]);
+  }, [pageInfo.hasNewer, props.loadingNewer, props.onLoadNewer]);
 
   const onScroll = React.useCallback(async () => {
     const element = containerRef.current;
@@ -264,7 +283,7 @@ export function LogsTable(props: {
     }
 
     const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
-    isAtBottomRef.current = distanceToBottom < 24;
+    isAtBottomRef.current = distanceToBottom < BOTTOM_LOCK_THRESHOLD_PX;
 
     if (element.scrollTop < SCROLL_THRESHOLD_PX) {
       await loadOlderWithAnchor();
@@ -281,7 +300,7 @@ export function LogsTable(props: {
       return;
     }
 
-    suppressPagingUntilRef.current = Date.now() + 400;
+    suppressPagingUntilRef.current = Date.now() + SUPPRESS_PAGING_WINDOW_MS;
     element.scrollTop = element.scrollHeight;
   }, [props.rows.length]);
 
@@ -340,7 +359,7 @@ export function LogsTable(props: {
 
     const timer = window.setTimeout(() => {
       setPagingNotice(null);
-    }, 1500);
+    }, PAGING_NOTICE_TIMEOUT_MS);
 
     return () => {
       window.clearTimeout(timer);
@@ -376,9 +395,10 @@ export function LogsTable(props: {
       </div>
       <div ref={containerRef} onScroll={() => void onScroll()} className="flex-1 overflow-auto">
         <div
-          className="relative min-w-[1500px]"
+          className="relative"
           style={{
             height: virtualizer.getTotalSize(),
+            minWidth: TABLE_MIN_WIDTH_PX,
           }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -386,11 +406,11 @@ export function LogsTable(props: {
             const sequenceStatus = fakeSequenceMode
               ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile)
               : "none";
-            const rowClassName = `absolute left-0 grid w-full border-b border-border/60 px-3 text-xs ${getSequenceRowClasses(
+            const rowClassName = buildRowClassName({
               sequenceStatus,
-            )} ${props.selectedRowKey === row.id ? "ring-1 ring-inset ring-primary/60" : ""} ${
-              props.onSelectRow ? "cursor-pointer" : ""
-            }`;
+              isSelected: props.selectedRowKey === row.id,
+              isSelectable: Boolean(props.onSelectRow),
+            });
             const rowStyle = {
               top: 0,
               transform: `translateY(${virtualRow.start}px)`,

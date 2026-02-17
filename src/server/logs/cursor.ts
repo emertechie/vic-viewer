@@ -89,13 +89,3 @@ export function buildCursorFromRow(options: {
     },
   });
 }
-
-export function createCursorFromRow(options: {
-  direction: "older" | "newer";
-  row: LogRow;
-  profile: LogProfile;
-  queryHash: string;
-  window: { start: string; end: string };
-}): string {
-  return encodeCursor(buildCursorFromRow(options));
-}
