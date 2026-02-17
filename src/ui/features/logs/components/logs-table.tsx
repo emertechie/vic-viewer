@@ -1,15 +1,17 @@
 import * as React from "react";
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { extractLogSequence } from "../../../../shared/logs/sequence";
 import type { LogProfile, LogRow, LogsPageInfo } from "../api/types";
+import { useLogsTablePaging } from "../hooks/use-logs-table-paging";
 import { getPageInfoOrDefault } from "../state/paging";
 import {
   getProfileFieldIdentifier,
   getProfileFieldLabel,
-  resolveCoreFieldDisplayText,
   resolveFieldDisplayText,
 } from "../state/profile-fields";
+import { isFakeSequenceMode, LogsTableBody } from "./logs-table-body";
+import { LogsTableFooter, LogsTablePagingNotice } from "./logs-table-footer";
+import { LogsTableHeader } from "./logs-table-header";
 
 type LogsTableColumn = {
   id: string;
@@ -20,113 +22,7 @@ type LogsTableColumn = {
 };
 
 const ROW_ESTIMATE_PX = 34;
-const SCROLL_THRESHOLD_PX = 180;
-const BOTTOM_LOCK_THRESHOLD_PX = 24;
-const SUPPRESS_PAGING_WINDOW_MS = 400;
-const FAKE_SEQUENCE_SAMPLE_SIZE = 20;
-const PAGING_NOTICE_TIMEOUT_MS = 1500;
 const TABLE_MIN_WIDTH_PX = 1500;
-
-type SequenceCheckStatus = "pass_full" | "pass_partial" | "fail" | "none";
-
-function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
-  return (
-    resolveCoreFieldDisplayText({
-      record: row.raw,
-      profile: activeProfile,
-      coreField: "message",
-    }) ?? ""
-  );
-}
-
-function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile): boolean {
-  const sample = rows.slice(0, FAKE_SEQUENCE_SAMPLE_SIZE);
-  if (sample.length === 0) {
-    return false;
-  }
-
-  return sample.every(
-    (row) => extractLogSequence(resolveMessageForRow(row, activeProfile)) !== null,
-  );
-}
-
-function getSequenceCheckStatus(
-  rows: LogRow[],
-  index: number,
-  activeProfile: LogProfile,
-): SequenceCheckStatus {
-  const current = rows[index];
-  if (!current) {
-    return "none";
-  }
-
-  const hasAbove = index > 0;
-  const hasBelow = index < rows.length - 1;
-  if (!hasAbove && !hasBelow) {
-    return "none";
-  }
-
-  const currentSequence = extractLogSequence(resolveMessageForRow(current, activeProfile));
-  const aboveSequence = hasAbove
-    ? extractLogSequence(resolveMessageForRow(rows[index - 1] as LogRow, activeProfile))
-    : null;
-  const belowSequence = hasBelow
-    ? extractLogSequence(resolveMessageForRow(rows[index + 1] as LogRow, activeProfile))
-    : null;
-
-  if (
-    hasAbove &&
-    (currentSequence === null || aboveSequence === null || aboveSequence !== currentSequence - 1)
-  ) {
-    return "fail";
-  }
-
-  if (
-    hasBelow &&
-    (currentSequence === null || belowSequence === null || belowSequence !== currentSequence + 1)
-  ) {
-    return "fail";
-  }
-
-  return hasAbove && hasBelow ? "pass_full" : "pass_partial";
-}
-
-function getSequenceRowClasses(status: SequenceCheckStatus): string {
-  if (status === "pass_full") {
-    return "bg-emerald-500/15 hover:bg-emerald-500/20";
-  }
-
-  if (status === "pass_partial") {
-    return "bg-sky-500/15 hover:bg-sky-500/20";
-  }
-
-  if (status === "fail") {
-    return "bg-rose-500/15 hover:bg-rose-500/20";
-  }
-
-  return "hover:bg-muted/40";
-}
-
-function buildRowClassName(options: {
-  sequenceStatus: SequenceCheckStatus;
-  isSelected: boolean;
-  isSelectable: boolean;
-}): string {
-  const classNames = [
-    "absolute left-0 grid w-full border-b border-border/60 px-3 text-xs",
-    getSequenceRowClasses(options.sequenceStatus),
-  ];
-
-  if (options.isSelected) {
-    classNames.push("ring-1 ring-inset ring-primary/60");
-  }
-
-  if (options.isSelectable) {
-    classNames.push("cursor-pointer");
-  }
-
-  return classNames.join(" ");
-}
 
 function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
   return activeProfile.logTable.columns.map((column) => ({
@@ -183,18 +79,6 @@ export function LogsTable(props: {
   onSelectRow?: (row: LogRow) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const isAtBottomRef = React.useRef(true);
-  // Programmatic scroll-to-bottom during initial render can fire onScroll and
-  // immediately trigger paging. This guard ignores those synthetic events briefly.
-  const suppressPagingUntilRef = React.useRef(0);
-  const [pagingNotice, setPagingNotice] = React.useState<string | null>(null);
-  const previousLoadingStateRef = React.useRef({
-    older: false,
-    newer: false,
-  });
-  const olderLoadStartRowsRef = React.useRef<number | null>(null);
-  const newerLoadStartRowsRef = React.useRef<number | null>(null);
   const tableColumns = React.useMemo(
     () => toTableColumns(props.activeProfile).filter((column) => !column.hidden),
     [props.activeProfile],
@@ -224,6 +108,16 @@ export function LogsTable(props: {
     () => isFakeSequenceMode(props.rows, props.activeProfile),
     [props.activeProfile, props.rows],
   );
+  const { containerRef, handleScroll, pagingNotice } = useLogsTablePaging({
+    rowsLength: props.rows.length,
+    hasOlder: pageInfo.hasOlder,
+    hasNewer: pageInfo.hasNewer,
+    loadingOlder: props.loadingOlder,
+    loadingNewer: props.loadingNewer,
+    fakeSequenceMode,
+    onLoadOlder: props.onLoadOlder,
+    onLoadNewer: props.onLoadNewer,
+  });
   const table = useReactTable({
     data: props.rows,
     columns,
@@ -238,133 +132,6 @@ export function LogsTable(props: {
     estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 12,
   });
-
-  const loadOlderWithAnchor = React.useCallback(async () => {
-    if (!pageInfo.hasOlder || props.loadingOlder) {
-      return;
-    }
-
-    const scrollElement = containerRef.current;
-    if (!scrollElement) {
-      return;
-    }
-
-    const previousHeight = scrollElement.scrollHeight;
-    const previousTop = scrollElement.scrollTop;
-    await props.onLoadOlder();
-
-    requestAnimationFrame(() => {
-      const currentElement = containerRef.current;
-      if (!currentElement) {
-        return;
-      }
-
-      const heightDelta = currentElement.scrollHeight - previousHeight;
-      currentElement.scrollTop = previousTop + heightDelta;
-    });
-  }, [pageInfo.hasOlder, props.loadingOlder, props.onLoadOlder]);
-
-  const loadNewer = React.useCallback(async () => {
-    if (!pageInfo.hasNewer || props.loadingNewer) {
-      return;
-    }
-
-    await props.onLoadNewer();
-  }, [pageInfo.hasNewer, props.loadingNewer, props.onLoadNewer]);
-
-  const onScroll = React.useCallback(async () => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    if (Date.now() < suppressPagingUntilRef.current) {
-      return;
-    }
-
-    const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
-    isAtBottomRef.current = distanceToBottom < BOTTOM_LOCK_THRESHOLD_PX;
-
-    if (element.scrollTop < SCROLL_THRESHOLD_PX) {
-      await loadOlderWithAnchor();
-    }
-
-    if (distanceToBottom < SCROLL_THRESHOLD_PX) {
-      await loadNewer();
-    }
-  }, [loadNewer, loadOlderWithAnchor]);
-
-  React.useEffect(() => {
-    const element = containerRef.current;
-    if (!element || !isAtBottomRef.current || props.rows.length === 0) {
-      return;
-    }
-
-    suppressPagingUntilRef.current = Date.now() + SUPPRESS_PAGING_WINDOW_MS;
-    element.scrollTop = element.scrollHeight;
-  }, [props.rows.length]);
-
-  React.useEffect(() => {
-    if (!fakeSequenceMode) {
-      setPagingNotice(null);
-      previousLoadingStateRef.current = {
-        older: props.loadingOlder,
-        newer: props.loadingNewer,
-      };
-      return;
-    }
-
-    const previous = previousLoadingStateRef.current;
-
-    if (!previous.older && props.loadingOlder) {
-      olderLoadStartRowsRef.current = props.rows.length;
-    }
-
-    if (!previous.newer && props.loadingNewer) {
-      newerLoadStartRowsRef.current = props.rows.length;
-    }
-
-    if (previous.older && !props.loadingOlder) {
-      const startRows = olderLoadStartRowsRef.current;
-      if (startRows !== null) {
-        const loadedRows = props.rows.length - startRows;
-        if (loadedRows > 0) {
-          setPagingNotice(`Loaded ${loadedRows} older rows`);
-        }
-      }
-      olderLoadStartRowsRef.current = null;
-    }
-
-    if (previous.newer && !props.loadingNewer) {
-      const startRows = newerLoadStartRowsRef.current;
-      if (startRows !== null) {
-        const loadedRows = props.rows.length - startRows;
-        if (loadedRows > 0) {
-          setPagingNotice(`Loaded ${loadedRows} newer rows`);
-        }
-      }
-      newerLoadStartRowsRef.current = null;
-    }
-
-    previousLoadingStateRef.current = {
-      older: props.loadingOlder,
-      newer: props.loadingNewer,
-    };
-  }, [fakeSequenceMode, props.loadingNewer, props.loadingOlder, props.rows.length]);
-
-  React.useEffect(() => {
-    if (!pagingNotice) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setPagingNotice(null);
-    }, PAGING_NOTICE_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [pagingNotice]);
 
   if (props.isLoadingInitial) {
     return (
@@ -381,86 +148,27 @@ export function LogsTable(props: {
           {props.errorMessage}
         </div>
       ) : null}
-      <div
-        className="grid shrink-0 border-b border-border bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-muted/30"
-        style={{ gridTemplateColumns }}
-      >
-        {table.getHeaderGroups().map((headerGroup) =>
-          headerGroup.headers.map((header) => (
-            <div key={header.id} className="truncate px-1">
-              {flexRender(header.column.columnDef.header, header.getContext())}
-            </div>
-          )),
-        )}
-      </div>
-      <div ref={containerRef} onScroll={() => void onScroll()} className="flex-1 overflow-auto">
-        <div
-          className="relative"
-          style={{
-            height: virtualizer.getTotalSize(),
-            minWidth: TABLE_MIN_WIDTH_PX,
-          }}
-        >
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const row = rowModel.rows[virtualRow.index];
-            const sequenceStatus = fakeSequenceMode
-              ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile)
-              : "none";
-            const rowClassName = buildRowClassName({
-              sequenceStatus,
-              isSelected: props.selectedRowKey === row.id,
-              isSelectable: Boolean(props.onSelectRow),
-            });
-            const rowStyle = {
-              top: 0,
-              transform: `translateY(${virtualRow.start}px)`,
-              height: `${virtualRow.size}px`,
-              gridTemplateColumns,
-            } as const;
-
-            const rowCells = row.getVisibleCells().map((cell) => (
-              <div key={cell.id} className="self-center truncate px-1 text-foreground/90">
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </div>
-            ));
-
-            if (props.onSelectRow) {
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  onClick={() => props.onSelectRow?.(row.original)}
-                  className={`appearance-none bg-transparent text-left ${rowClassName}`}
-                  style={rowStyle}
-                >
-                  {rowCells}
-                </button>
-              );
-            }
-
-            return (
-              <div key={row.id} className={rowClassName} style={rowStyle}>
-                {rowCells}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center justify-between border-t border-border px-3 py-2 text-xs text-muted-foreground">
-        <span>
-          Rows: {props.rows.length}
-          {props.isRefreshing ? " • refreshing..." : ""}
-        </span>
-        <span>
-          {pageInfo.hasOlder ? "older available" : "oldest loaded"} •{" "}
-          {pageInfo.hasNewer ? "newer available" : "newest loaded"}
-        </span>
-      </div>
-      {fakeSequenceMode && pagingNotice ? (
-        <div className="pointer-events-none absolute bottom-14 right-4 rounded-lg border border-sky-300 bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-lg">
-          {pagingNotice}
-        </div>
-      ) : null}
+      <LogsTableHeader table={table} gridTemplateColumns={gridTemplateColumns} />
+      <LogsTableBody
+        containerRef={containerRef}
+        onScroll={handleScroll}
+        virtualizer={virtualizer}
+        rowModel={rowModel}
+        rows={props.rows}
+        activeProfile={props.activeProfile}
+        fakeSequenceMode={fakeSequenceMode}
+        selectedRowKey={props.selectedRowKey}
+        onSelectRow={props.onSelectRow}
+        gridTemplateColumns={gridTemplateColumns}
+        minWidth={TABLE_MIN_WIDTH_PX}
+      />
+      <LogsTableFooter
+        rowCount={props.rows.length}
+        isRefreshing={props.isRefreshing}
+        hasOlder={pageInfo.hasOlder}
+        hasNewer={pageInfo.hasNewer}
+      />
+      {fakeSequenceMode && pagingNotice ? <LogsTablePagingNotice message={pagingNotice} /> : null}
     </div>
   );
 }

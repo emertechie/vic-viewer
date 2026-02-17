@@ -1,145 +1,18 @@
 import * as React from "react";
-import { CopyButton } from "@/components/copy-button";
-import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useClipboard } from "@/hooks/use-clipboard";
 import type { LogProfile, LogRow } from "../api/types";
-import {
-  fieldNameToTitle,
-  getProfileFieldIdentifier,
-  getProfileFieldLabel,
-  resolveCoreFieldDisplayText,
-  resolveFieldMatch,
-  toDisplayText,
-} from "../state/profile-fields";
+import { resolveCoreFieldDisplayText } from "../state/profile-fields";
+import { LogDetailsFieldSetSection } from "./log-details-field-set-section";
+import { buildProfileFieldSets } from "./log-details-field-sets";
+import { LogDetailsRawJsonSection } from "./log-details-raw-json-section";
 
-type CopyHandler = (value: string) => Promise<void> | void;
-type DrawerFieldRow = { id: string; label: string; value: string | null };
-type DrawerFieldSet = { id: string; name: string; rows: DrawerFieldRow[] };
-
-function parseOriginalFormatTokens(originalFormat: string): string[] {
-  const tokenSet = new Set<string>();
-  const regex = /\{([^{}]+)\}/g;
-  let match: RegExpExecArray | null = regex.exec(originalFormat);
-  while (match) {
-    const token = match[1]?.trim();
-    if (token) {
-      tokenSet.add(token);
-    }
-    match = regex.exec(originalFormat);
-  }
-
-  return [...tokenSet].sort((left, right) => left.localeCompare(right));
-}
-
-function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerFieldSet[] {
-  const renderedKeys = new Set<string>();
-  const sets: DrawerFieldSet[] = [];
-
-  for (const [fieldSetIndex, fieldSet] of profile.logDetails.fieldSets.entries()) {
-    const rows: DrawerFieldRow[] = [];
-
-    for (const [fieldIndex, field] of fieldSet.fields.entries()) {
-      if (field.type === "StructuredLoggingFields") {
-        const originalFormatMatch = resolveFieldMatch(row.raw, { field: "{OriginalFormat}" });
-        const originalFormatText = originalFormatMatch
-          ? toDisplayText(originalFormatMatch.value)
-          : null;
-        if (!originalFormatText) {
-          continue;
-        }
-
-        for (const token of parseOriginalFormatTokens(originalFormatText)) {
-          if (renderedKeys.has(token)) {
-            continue;
-          }
-
-          const tokenMatch = resolveFieldMatch(row.raw, { field: token });
-          if (!tokenMatch) {
-            continue;
-          }
-
-          rows.push({
-            id: `${fieldSetIndex}-${fieldIndex}-structured-${token}`,
-            label: fieldNameToTitle(token),
-            value: toDisplayText(tokenMatch.value),
-          });
-          renderedKeys.add(tokenMatch.key);
-        }
-
-        continue;
-      }
-
-      if (field.type === "RemainingFields") {
-        for (const rawKey of Object.keys(row.raw).sort((left, right) =>
-          left.localeCompare(right),
-        )) {
-          if (renderedKeys.has(rawKey)) {
-            continue;
-          }
-
-          const value = toDisplayText(row.raw[rawKey]);
-          if (value === null) {
-            continue;
-          }
-
-          rows.push({
-            id: `${fieldSetIndex}-${fieldIndex}-remaining-${rawKey}`,
-            label: fieldNameToTitle(rawKey),
-            value,
-          });
-          renderedKeys.add(rawKey);
-        }
-
-        continue;
-      }
-
-      const matched = resolveFieldMatch(row.raw, field);
-      const value = matched ? toDisplayText(matched.value) : null;
-      rows.push({
-        id: `${fieldSetIndex}-${fieldIndex}-${getProfileFieldIdentifier(field)}`,
-        label: getProfileFieldLabel(field),
-        value,
-      });
-
-      if (matched) {
-        renderedKeys.add(matched.key);
-      }
-    }
-
-    if (rows.length > 0) {
-      sets.push({
-        id: fieldSet.id ?? `${fieldSet.name}-${fieldSetIndex}`,
-        name: fieldSet.name,
-        rows,
-      });
-    }
-  }
-
-  return sets;
-}
-
-function DetailRow(props: { label: string; value: string | null; onCopy?: CopyHandler }) {
-  const displayValue = props.value ?? "—";
-  const canCopy = Boolean(props.value);
-
-  const handleCopyValue = React.useCallback(async () => {
-    if (!props.value || !props.onCopy) {
-      return;
-    }
-
-    await props.onCopy(props.value);
-  }, [props.onCopy, props.value]);
-
+function DrawerEmptyState(props: { selectedKey?: string }) {
   return (
-    <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
-      <span className="text-muted-foreground">{props.label}</span>
-      <span className="break-all text-foreground">{displayValue}</span>
-      <CopyButton
-        label={props.label}
-        disabled={!canCopy || !props.onCopy}
-        onCopy={handleCopyValue}
-      />
+    <div className="rounded border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+      {props.selectedKey
+        ? "Selected log is no longer loaded in the current window."
+        : "No log selected."}
     </div>
   );
 }
@@ -207,66 +80,22 @@ export function LogDetailsDrawer(props: {
           {props.row ? (
             <div className="space-y-4">
               {fieldSets.map((fieldSet) => (
-                <section key={fieldSet.id}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {fieldSet.name}
-                    </h3>
-                    {(fieldSet.name.toLowerCase().includes("trace") ||
-                      fieldSet.name.toLowerCase().includes("correlation")) &&
-                    traceId ? (
-                      <button
-                        type="button"
-                        onClick={() => props.onOpenTrace(traceId)}
-                        className="rounded border border-primary/40 px-2 py-0.5 text-[10px] text-primary"
-                      >
-                        Open Trace
-                      </button>
-                    ) : null}
-                  </div>
-                  {fieldSet.rows.map((fieldRow) => (
-                    <DetailRow
-                      key={fieldRow.id}
-                      label={fieldRow.label}
-                      value={fieldRow.value}
-                      onCopy={copyToClipboard}
-                    />
-                  ))}
-                </section>
+                <LogDetailsFieldSetSection
+                  key={fieldSet.id}
+                  fieldSet={fieldSet}
+                  traceId={traceId}
+                  onOpenTrace={props.onOpenTrace}
+                  onCopy={copyToClipboard}
+                />
               ))}
-              <section>
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Raw JSON
-                </h3>
-                <pre
-                  className={`max-h-72 overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px] ${
-                    wrapRawJson ? "whitespace-pre-wrap break-all" : "whitespace-pre"
-                  }`}
-                >
-                  {JSON.stringify(props.row.raw, null, 2)}
-                </pre>
-                <div className="mb-2 mt-2 flex justify-end">
-                  <label
-                    htmlFor="wrap-raw-json"
-                    className="inline-flex items-center gap-2 text-xs text-muted-foreground"
-                  >
-                    Wrap text
-                    <Switch
-                      id="wrap-raw-json"
-                      size="sm"
-                      checked={wrapRawJson}
-                      onCheckedChange={setWrapRawJson}
-                    />
-                  </label>
-                </div>
-              </section>
+              <LogDetailsRawJsonSection
+                raw={props.row.raw}
+                wrapRawJson={wrapRawJson}
+                onWrapRawJsonChange={setWrapRawJson}
+              />
             </div>
           ) : (
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-              {props.selectedKey
-                ? "Selected log is no longer loaded in the current window."
-                : "No log selected."}
-            </div>
+            <DrawerEmptyState selectedKey={props.selectedKey} />
           )}
         </div>
       </aside>
