@@ -82,7 +82,7 @@ function buildRowClassName(options: {
   isSelectable: boolean;
 }): string {
   const classNames = [
-    "absolute left-0 grid w-full border-b border-border/60 px-3 text-xs",
+    "absolute left-0 flex border-b border-border/60 px-3 text-xs",
     getSequenceRowClasses(options.sequenceStatus),
   ];
 
@@ -109,8 +109,6 @@ export function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile): b
 }
 
 export function LogsTableBody(props: {
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  onScroll: () => Promise<void>;
   virtualizer: Virtualizer<HTMLDivElement, Element>;
   rowModel: RowModel<LogRow>;
   rows: LogRow[];
@@ -118,70 +116,61 @@ export function LogsTableBody(props: {
   fakeSequenceMode: boolean;
   selectedRowKey?: string;
   onSelectRow?: (row: LogRow) => void;
-  gridTemplateColumns: string;
-  minWidth: number;
+  tableWidth: number;
 }) {
   return (
-    <div
-      ref={props.containerRef}
-      onScroll={() => void props.onScroll()}
-      className="flex-1 overflow-auto"
-    >
-      <div
-        className="relative"
-        style={{
-          height: props.virtualizer.getTotalSize(),
-          minWidth: props.minWidth,
-        }}
-      >
-        {props.virtualizer.getVirtualItems().map((virtualRow) => {
-          const row = props.rowModel.rows[virtualRow.index];
-          if (!row) {
-            return null;
-          }
+    <div className="relative" style={{ height: props.virtualizer.getTotalSize() }}>
+      {props.virtualizer.getVirtualItems().map((virtualRow) => {
+        const row = props.rowModel.rows[virtualRow.index];
+        if (!row) {
+          return null;
+        }
 
-          const sequenceStatus = props.fakeSequenceMode
-            ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile)
-            : "none";
-          const rowClassName = buildRowClassName({
-            sequenceStatus,
-            isSelected: props.selectedRowKey === row.id,
-            isSelectable: Boolean(props.onSelectRow),
-          });
-          const rowStyle = {
-            top: 0,
-            transform: `translateY(${virtualRow.start}px)`,
-            height: `${virtualRow.size}px`,
-            gridTemplateColumns: props.gridTemplateColumns,
-          } as const;
+        const sequenceStatus = props.fakeSequenceMode
+          ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile)
+          : "none";
+        const rowClassName = buildRowClassName({
+          sequenceStatus,
+          isSelected: props.selectedRowKey === row.id,
+          isSelectable: Boolean(props.onSelectRow),
+        });
+        const rowStyle = {
+          top: 0,
+          transform: `translateY(${virtualRow.start}px)`,
+          height: `${virtualRow.size}px`,
+          width: props.tableWidth,
+        } as const;
 
-          const rowCells = row.getVisibleCells().map((cell) => (
-            <div key={cell.id} className="self-center truncate px-1 text-foreground/90">
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </div>
-          ));
+        const rowCells = row.getVisibleCells().map((cell) => (
+          <div
+            key={cell.id}
+            className="shrink-0 self-center truncate px-1 text-foreground/90"
+            style={{ width: cell.column.getSize() }}
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </div>
+        ));
 
-          if (props.onSelectRow) {
-            return (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => props.onSelectRow?.(row.original)}
-                className={`appearance-none text-left ${rowClassName}`}
-                style={rowStyle}
-              >
-                {rowCells}
-              </button>
-            );
-          }
-
+        if (props.onSelectRow) {
           return (
-            <div key={row.id} className={rowClassName} style={rowStyle}>
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => props.onSelectRow?.(row.original)}
+              className={`appearance-none text-left ${rowClassName}`}
+              style={rowStyle}
+            >
               {rowCells}
-            </div>
+            </button>
           );
-        })}
-      </div>
+        }
+
+        return (
+          <div key={row.id} className={rowClassName} style={rowStyle}>
+            {rowCells}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -22,7 +22,6 @@ type LogsTableColumn = {
 };
 
 const ROW_ESTIMATE_PX = 34;
-const TABLE_MIN_WIDTH_PX = 1500;
 
 function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
   return activeProfile.logTable.columns.map((column) => ({
@@ -34,34 +33,16 @@ function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
   }));
 }
 
-function getGridTemplateColumns(columns: LogsTableColumn[]): string {
-  return columns
-    .map((column) => {
-      const id = column.id.toLowerCase();
-      const title = column.title.toLowerCase();
-      if (id.includes("time") || title === "time") {
-        return "210px";
-      }
-
-      if (id.includes("level") || id.includes("severity") || title === "level") {
-        return "90px";
-      }
-
-      if (id.includes("message") || title === "message") {
-        return "minmax(420px,1fr)";
-      }
-
-      if (id.includes("trace") || id.includes("span")) {
-        return "320px";
-      }
-
-      if (id.includes("service") || title === "service") {
-        return "220px";
-      }
-
-      return "minmax(180px,1fr)";
-    })
-    .join(" ");
+/** Map profile column to a default pixel width for TanStack column sizing. */
+function getDefaultColumnSize(column: LogsTableColumn): number {
+  const id = column.id.toLowerCase();
+  const title = column.title.toLowerCase();
+  if (id.includes("time") || title === "time") return 210;
+  if (id.includes("level") || id.includes("severity") || title === "level") return 90;
+  if (id.includes("message") || title === "message") return 420;
+  if (id.includes("trace") || id.includes("span")) return 320;
+  if (id.includes("service") || title === "service") return 220;
+  return 180;
 }
 
 export function LogsTable(props: {
@@ -83,14 +64,11 @@ export function LogsTable(props: {
     () => toTableColumns(props.activeProfile).filter((column) => !column.hidden),
     [props.activeProfile],
   );
-  const gridTemplateColumns = React.useMemo(
-    () => getGridTemplateColumns(tableColumns),
-    [tableColumns],
-  );
   const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
     return tableColumns.map((column) => ({
       id: column.id,
       header: column.title,
+      size: getDefaultColumnSize(column),
       cell: (context) => {
         const row = context.row.original;
         if (column.field || column.fields) {
@@ -163,20 +141,22 @@ export function LogsTable(props: {
           {props.errorMessage}
         </div>
       ) : null}
-      <LogsTableHeader table={table} gridTemplateColumns={gridTemplateColumns} />
-      <LogsTableBody
-        containerRef={containerRef}
-        onScroll={handleScroll}
-        virtualizer={virtualizer}
-        rowModel={rowModel}
-        rows={props.rows}
-        activeProfile={props.activeProfile}
-        fakeSequenceMode={fakeSequenceMode}
-        selectedRowKey={props.selectedRowKey}
-        onSelectRow={props.onSelectRow}
-        gridTemplateColumns={gridTemplateColumns}
-        minWidth={TABLE_MIN_WIDTH_PX}
-      />
+      {/* Single scroll container for header + body so they scroll horizontally together */}
+      <div ref={containerRef} onScroll={() => void handleScroll()} className="flex-1 overflow-auto">
+        <div style={{ width: table.getTotalSize() }}>
+          <LogsTableHeader table={table} />
+          <LogsTableBody
+            virtualizer={virtualizer}
+            rowModel={rowModel}
+            rows={props.rows}
+            activeProfile={props.activeProfile}
+            fakeSequenceMode={fakeSequenceMode}
+            selectedRowKey={props.selectedRowKey}
+            onSelectRow={props.onSelectRow}
+            tableWidth={table.getTotalSize()}
+          />
+        </div>
+      </div>
       <LogsTableFooter
         rowCount={props.rows.length}
         isRefreshing={props.isRefreshing}
