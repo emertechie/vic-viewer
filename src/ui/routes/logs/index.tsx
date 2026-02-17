@@ -17,6 +17,19 @@ export const Route = createFileRoute("/logs/")({
   component: LogsPage,
 });
 
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
+  );
+}
+
 function LogsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
@@ -30,6 +43,10 @@ function LogsPage() {
     : null;
   const selectedRow = React.useMemo(
     () => viewer.rows.find((row) => row.key === search.selected) ?? null,
+    [search.selected, viewer.rows],
+  );
+  const selectedRowIndex = React.useMemo(
+    () => viewer.rows.findIndex((row) => row.key === search.selected),
     [search.selected, viewer.rows],
   );
 
@@ -101,6 +118,42 @@ function LogsPage() {
     });
   }, [navigate]);
 
+  React.useEffect(() => {
+    if (!search.selected) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
+        return;
+      }
+
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      const step = event.key === "ArrowUp" ? -1 : 1;
+      const nextRow = viewer.rows[selectedRowIndex + step];
+      if (!nextRow) {
+        return;
+      }
+
+      event.preventDefault();
+      navigate({
+        search: (previous) => ({
+          ...previous,
+          selected: nextRow.key,
+        }),
+        replace: true,
+      });
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [navigate, search.selected, selectedRowIndex, viewer.rows]);
+
   const onOpenTrace = React.useCallback(
     (traceId: string) => {
       navigate({
@@ -162,6 +215,8 @@ function LogsPage() {
           selectedKey={search.selected}
           row={selectedRow}
           activeProfile={activeProfile.data}
+          canSelectPrevious={selectedRowIndex > 0}
+          canSelectNext={selectedRowIndex > -1 && selectedRowIndex < viewer.rows.length - 1}
           onClose={onCloseDrawer}
           onOpenTrace={onOpenTrace}
         />

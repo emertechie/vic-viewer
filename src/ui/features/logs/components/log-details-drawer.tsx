@@ -1,5 +1,11 @@
 import * as React from "react";
-import { TooltipProvider } from "@/ui/components/ui/tooltip";
+import { ArrowDown, ArrowUp } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
 import type { LogProfile, LogRow } from "../api/types";
 import { resolveCoreFieldDisplayText } from "../state/profile-fields";
@@ -21,6 +27,8 @@ export function LogDetailsDrawer(props: {
   row: LogRow | null;
   activeProfile: LogProfile;
   selectedKey?: string;
+  canSelectPrevious: boolean;
+  canSelectNext: boolean;
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
 }) {
@@ -68,13 +76,40 @@ export function LogDetailsDrawer(props: {
             <h2 className="text-sm font-semibold">Log Details</h2>
             <p className="text-[11px] text-muted-foreground">Select a log row to inspect fields</p>
           </div>
-          <button
-            type="button"
-            onClick={props.onClose}
-            className="rounded border border-input px-2 py-1 text-xs"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <span
+                    className={`inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card ${
+                      props.canSelectPrevious ? "text-foreground" : "opacity-45"
+                    }`}
+                    aria-hidden
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </span>
+                  <span
+                    className={`inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card ${
+                      props.canSelectNext ? "text-foreground" : "opacity-45"
+                    }`}
+                    aria-hidden
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6}>
+                Press Up/Down arrow keys to view previous or next log
+              </TooltipContent>
+            </Tooltip>
+            <button
+              type="button"
+              onClick={props.onClose}
+              className="rounded border border-input px-2 py-1 text-xs"
+            >
+              Close
+            </button>
+          </div>
         </header>
         <div className="flex-1 overflow-auto px-3 py-2">
           {props.row ? (
