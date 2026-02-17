@@ -7,7 +7,12 @@ import {
   toDisplayText,
 } from "../state/profile-fields";
 
-export type DrawerFieldRow = { id: string; label: string; value: string | null };
+export type DrawerFieldRow = {
+  id: string;
+  label: string;
+  value: string | null;
+  valueType: "text" | "sql";
+};
 export type DrawerFieldSet = { id: string; name: string; rows: DrawerFieldRow[] };
 
 function parseOriginalFormatTokens(originalFormat: string): string[] {
@@ -56,6 +61,7 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
             id: `${fieldSetIndex}-${fieldIndex}-structured-${token}`,
             label: fieldNameToTitle(token),
             value: toDisplayText(tokenMatch.value),
+            valueType: "text",
           });
           renderedKeys.add(tokenMatch.key);
         }
@@ -80,6 +86,7 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
             id: `${fieldSetIndex}-${fieldIndex}-remaining-${rawKey}`,
             label: fieldNameToTitle(rawKey),
             value,
+            valueType: "text",
           });
           renderedKeys.add(rawKey);
         }
@@ -93,6 +100,7 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
         id: `${fieldSetIndex}-${fieldIndex}-${getProfileFieldIdentifier(field)}`,
         label: getProfileFieldLabel(field),
         value,
+        valueType: field.type === "sql" ? "sql" : "text",
       });
 
       if (matched) {

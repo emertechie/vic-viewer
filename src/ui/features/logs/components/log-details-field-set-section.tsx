@@ -1,6 +1,7 @@
 import * as React from "react";
 import { CopyButton } from "@/ui/components/copy-button";
 import type { DrawerFieldRow, DrawerFieldSet } from "./log-details-field-sets";
+import { LogDetailsCodeBlock } from "./log-details-code-block";
 
 type CopyHandler = (value: string) => Promise<void> | void;
 
@@ -24,7 +25,11 @@ function DetailRow(props: { row: DrawerFieldRow; onCopy: CopyHandler }) {
   return (
     <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
       <span className="text-muted-foreground">{props.row.label}</span>
-      <span className="break-all text-foreground">{displayValue}</span>
+      {props.row.valueType === "sql" && props.row.value ? (
+        <LogDetailsCodeBlock code={props.row.value} language="sql" className="max-h-48" />
+      ) : (
+        <span className="break-all text-foreground">{displayValue}</span>
+      )}
       <CopyButton label={props.row.label} disabled={!canCopy} onCopy={handleCopyValue} />
     </div>
   );

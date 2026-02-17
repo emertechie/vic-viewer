@@ -2,13 +2,21 @@ import * as React from "react";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { ThemeToggleButton } from "@/ui/components/theme-toggle-button";
 import { createDefaultLogsSearch } from "@/ui/features/logs/state/search";
-import { useThemeMode } from "@/ui/hooks/use-theme-mode";
+import { ThemeModeProvider, useThemeMode } from "@/ui/hooks/use-theme-mode";
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
 function RootLayout() {
+  return (
+    <ThemeModeProvider>
+      <RootLayoutContent />
+    </ThemeModeProvider>
+  );
+}
+
+function RootLayoutContent() {
   const { theme, toggleTheme } = useThemeMode();
 
   return (
