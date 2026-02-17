@@ -1,10 +1,12 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { LogRow } from "@/ui/features/logs/api/types";
+import type { ColumnConfigEntry } from "@/ui/features/logs/api/types";
 import { LogDetailsDrawer } from "@/ui/features/logs/components/log-details-drawer";
 import { LogsQueryControls } from "@/ui/features/logs/components/logs-query-controls";
 import { LogsTable } from "@/ui/features/logs/components/logs-table";
 import { useActiveLogProfile } from "@/ui/features/logs/hooks/use-active-log-profile";
+import { useColumnConfig } from "@/ui/features/logs/hooks/use-column-config";
 import { useKeyboardRowNavigation } from "@/ui/features/logs/hooks/use-keyboard-row-navigation";
 import { useLogsViewer } from "@/ui/features/logs/hooks/use-logs-viewer";
 import {
@@ -28,6 +30,8 @@ function LogsPage() {
   const search = Route.useSearch();
   const viewer = useLogsViewer(search);
   const activeProfile = useActiveLogProfile();
+  const columnConfig = useColumnConfig(activeProfile.data);
+  const [columnPickerOpen, setColumnPickerOpen] = React.useState(false);
   const isProfileLoading = activeProfile.isLoading && !activeProfile.data;
   const profileErrorMessage = activeProfile.error
     ? activeProfile.error instanceof Error
@@ -156,6 +160,30 @@ function LogsPage() {
     [navigate],
   );
 
+  const onToggleColumnVisibility = React.useCallback(
+    (fieldId: string, field?: string, fields?: string[], title?: string) => {
+      const currentColumns = columnConfig.columns;
+      const isVisible = currentColumns.some((col) => col.id === fieldId);
+
+      if (isVisible) {
+        columnConfig.save({
+          columns: currentColumns.filter((col) => col.id !== fieldId),
+        });
+      } else {
+        const newEntry: ColumnConfigEntry = {
+          id: fieldId,
+          title: title ?? fieldId,
+          ...(field ? { field } : {}),
+          ...(fields ? { fields } : {}),
+        };
+        columnConfig.save({
+          columns: [...currentColumns, newEntry],
+        });
+      }
+    },
+    [columnConfig],
+  );
+
   return (
     <div className="relative flex h-full flex-col">
       <LogsQueryControls
@@ -180,20 +208,33 @@ function LogsPage() {
             </button>
           </div>
         ) : activeProfile.data ? (
-          <LogsTable
-            rows={viewer.rows}
-            pageInfo={viewer.pageInfo}
-            activeProfile={activeProfile.data}
-            selectedRowKey={search.selected}
-            loadingOlder={viewer.loadingOlder}
-            loadingNewer={viewer.loadingNewer}
-            isLoadingInitial={viewer.isLoadingInitial}
-            isRefreshing={viewer.isRefreshing}
-            errorMessage={viewer.errorMessage}
-            onLoadOlder={viewer.loadOlder}
-            onLoadNewer={viewer.loadNewer}
-            onSelectRow={onSelectRow}
-          />
+          <div className="flex h-full flex-col">
+            <LogsTableToolbar onOpenColumnPicker={() => setColumnPickerOpen(true)} />
+            <div className="flex-1 overflow-hidden">
+              <LogsTable
+                rows={viewer.rows}
+                pageInfo={viewer.pageInfo}
+                activeProfile={activeProfile.data}
+                visibleColumns={columnConfig.columns}
+                selectedRowKey={search.selected}
+                loadingOlder={viewer.loadingOlder}
+                loadingNewer={viewer.loadingNewer}
+                isLoadingInitial={viewer.isLoadingInitial}
+                isRefreshing={viewer.isRefreshing}
+                errorMessage={viewer.errorMessage}
+                onLoadOlder={viewer.loadOlder}
+                onLoadNewer={viewer.loadNewer}
+                onSelectRow={onSelectRow}
+              />
+            </div>
+            {columnPickerOpen ? (
+              <ColumnPickerModal
+                profile={activeProfile.data}
+                columnConfig={columnConfig}
+                onClose={() => setColumnPickerOpen(false)}
+              />
+            ) : null}
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             No active log profile available.
@@ -205,14 +246,49 @@ function LogsPage() {
           selectedKey={search.selected}
           row={selectedRow}
           activeProfile={activeProfile.data}
+          visibleColumns={columnConfig.columns}
           canSelectPrevious={canSelectPrevious}
           canSelectNext={canSelectNext}
           onSelectPrevious={onSelectPrevious}
           onSelectNext={onSelectNext}
           onClose={onCloseDrawer}
           onOpenTrace={onOpenTrace}
+          onToggleColumn={onToggleColumnVisibility}
         />
       ) : null}
     </div>
   );
 }
+
+/** Small toolbar row above the table with the "Columns" button. */
+function LogsTableToolbar(props: { onOpenColumnPicker: () => void }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+      <button
+        type="button"
+        onClick={props.onOpenColumnPicker}
+        className="inline-flex items-center gap-1.5 rounded border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3.5 w-3.5"
+          aria-hidden
+        >
+          <rect x="3" y="3" width="7" height="18" rx="1" />
+          <rect x="14" y="3" width="7" height="18" rx="1" />
+        </svg>
+        Columns
+      </button>
+    </div>
+  );
+}
+
+// Lazy-import placeholder - the actual ColumnPickerModal is defined in its own file.
+// We import it here so the route doesn't need to know about internals.
+import { ColumnPickerModal } from "@/ui/features/logs/components/column-picker-modal";

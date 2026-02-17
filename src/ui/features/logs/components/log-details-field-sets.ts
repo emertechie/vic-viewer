@@ -12,6 +12,10 @@ export type DrawerFieldRow = {
   label: string;
   value: string | null;
   valueType: "text" | "sql";
+  /** The primary raw field key, used for column-toggle. */
+  field?: string;
+  /** Fallback raw field keys, used for column-toggle. */
+  fields?: string[];
 };
 export type DrawerFieldSet = { id: string; name: string; rows: DrawerFieldRow[] };
 
@@ -37,7 +41,7 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
   for (const [fieldSetIndex, fieldSet] of profile.logDetails.fieldSets.entries()) {
     const rows: DrawerFieldRow[] = [];
 
-    for (const [fieldIndex, field] of fieldSet.fields.entries()) {
+    for (const [, field] of fieldSet.fields.entries()) {
       if (field.type === "StructuredLoggingFields") {
         const originalFormatMatch = resolveFieldMatch(row.raw, { field: "{OriginalFormat}" });
         const originalFormatText = originalFormatMatch
@@ -58,10 +62,11 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
           }
 
           rows.push({
-            id: `${fieldSetIndex}-${fieldIndex}-structured-${token}`,
+            id: token,
             label: fieldNameToTitle(token),
             value: toDisplayText(tokenMatch.value),
             valueType: "text",
+            field: token,
           });
           renderedKeys.add(tokenMatch.key);
         }
@@ -83,10 +88,11 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
           }
 
           rows.push({
-            id: `${fieldSetIndex}-${fieldIndex}-remaining-${rawKey}`,
+            id: rawKey,
             label: fieldNameToTitle(rawKey),
             value,
             valueType: "text",
+            field: rawKey,
           });
           renderedKeys.add(rawKey);
         }
@@ -94,13 +100,16 @@ export function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerF
         continue;
       }
 
+      const fieldId = getProfileFieldIdentifier(field);
       const matched = resolveFieldMatch(row.raw, field);
       const value = matched ? toDisplayText(matched.value) : null;
       rows.push({
-        id: `${fieldSetIndex}-${fieldIndex}-${getProfileFieldIdentifier(field)}`,
+        id: fieldId,
         label: getProfileFieldLabel(field),
         value,
         valueType: field.type === "sql" ? "sql" : "text",
+        field: field.field,
+        fields: field.fields,
       });
 
       if (matched) {

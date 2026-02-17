@@ -19,3 +19,12 @@ export {
   type LogProfile,
   type ProfileFieldSelector,
 } from "../../../../shared/schemas/logProfiles";
+
+export {
+  columnConfigSchema,
+  columnConfigEntrySchema,
+  columnConfigUpdateSchema,
+  type ColumnConfig,
+  type ColumnConfigEntry,
+  type ColumnConfigUpdate,
+} from "../../../../shared/schemas/columnConfig";

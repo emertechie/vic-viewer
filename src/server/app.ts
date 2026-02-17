@@ -1,9 +1,11 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import type { ColumnConfigStore } from "./db/columnConfigStore";
 import type { LogsViewSettingsStore } from "./db/settingsStore";
 import { fallbackLogProfile } from "./logProfiles/fallbackLogProfile";
 import { errorResponseSchema } from "./schemas/errors";
 import type { LogProfile } from "./schemas/logProfiles";
+import { registerColumnConfigRoutes } from "./routes/columnConfig";
 import { registerHealthRoutes } from "./routes/health";
 import { registerLogProfileRoutes } from "./routes/logProfiles";
 import { registerLogsRoutes } from "./routes/logs";
@@ -14,6 +16,7 @@ import type { VictoriaLogsClient } from "./vicstack/victoriaLogsClient";
 export type AppServices = {
   isDatabaseReady: () => boolean;
   logsViewSettingsStore: LogsViewSettingsStore;
+  columnConfigStore: ColumnConfigStore;
   victoriaLogsClient: VictoriaLogsClient;
   getActiveLogProfile: () => LogProfile;
   logsCursorTransportMode: "encoded" | "json";
@@ -35,6 +38,17 @@ const defaultServices: AppServices = {
     },
     seedDefaults: () => {
       throw new Error("Logs view settings store not configured");
+    },
+  },
+  columnConfigStore: {
+    get: () => {
+      throw new Error("Column config store not configured");
+    },
+    put: () => {
+      throw new Error("Column config store not configured");
+    },
+    remove: () => {
+      throw new Error("Column config store not configured");
     },
   },
   victoriaLogsClient: {
@@ -96,6 +110,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
   registerSettingsRoutes(app, {
     logsViewSettingsStore: services.logsViewSettingsStore,
+  });
+  registerColumnConfigRoutes(app, {
+    columnConfigStore: services.columnConfigStore,
   });
   registerLogsRoutes(app, {
     victoriaLogsClient: services.victoriaLogsClient,

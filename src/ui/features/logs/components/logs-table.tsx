@@ -1,40 +1,18 @@
 import * as React from "react";
 import { getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { LogProfile, LogRow, LogsPageInfo } from "../api/types";
+import type { ColumnConfigEntry, LogProfile, LogRow, LogsPageInfo } from "../api/types";
 import { useLogsTablePaging } from "../hooks/use-logs-table-paging";
 import { getPageInfoOrDefault } from "../state/paging";
-import {
-  getProfileFieldIdentifier,
-  getProfileFieldLabel,
-  resolveFieldDisplayText,
-} from "../state/profile-fields";
+import { resolveFieldDisplayText } from "../state/profile-fields";
 import { isFakeSequenceMode, LogsTableBody } from "./logs-table-body";
 import { LogsTableFooter, LogsTablePagingNotice } from "./logs-table-footer";
 import { LogsTableHeader } from "./logs-table-header";
 
-type LogsTableColumn = {
-  id: string;
-  title: string;
-  hidden?: boolean;
-  field?: string;
-  fields?: string[];
-};
-
 const ROW_ESTIMATE_PX = 34;
 
-function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
-  return activeProfile.logTable.columns.map((column) => ({
-    id: getProfileFieldIdentifier(column),
-    title: getProfileFieldLabel(column),
-    hidden: column.hidden,
-    field: column.field,
-    fields: column.fields,
-  }));
-}
-
-/** Map profile column to a default pixel width for TanStack column sizing. */
-function getDefaultColumnSize(column: LogsTableColumn): number {
+/** Map column config entry to a default pixel width for TanStack column sizing. */
+function getDefaultColumnSize(column: ColumnConfigEntry): number {
   const id = column.id.toLowerCase();
   const title = column.title.toLowerCase();
   if (id.includes("time") || title === "time") return 210;
@@ -49,6 +27,7 @@ export function LogsTable(props: {
   rows: LogRow[];
   pageInfo: LogsPageInfo | null;
   activeProfile: LogProfile;
+  visibleColumns: ColumnConfigEntry[];
   selectedRowKey?: string;
   loadingOlder: boolean;
   loadingNewer: boolean;
@@ -60,15 +39,11 @@ export function LogsTable(props: {
   onSelectRow?: (row: LogRow) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
-  const tableColumns = React.useMemo(
-    () => toTableColumns(props.activeProfile).filter((column) => !column.hidden),
-    [props.activeProfile],
-  );
   const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
-    return tableColumns.map((column) => ({
+    return props.visibleColumns.map((column) => ({
       id: column.id,
       header: column.title,
-      size: getDefaultColumnSize(column),
+      size: column.width ?? getDefaultColumnSize(column),
       cell: (context) => {
         const row = context.row.original;
         if (column.field || column.fields) {
@@ -81,7 +56,7 @@ export function LogsTable(props: {
         return null;
       },
     }));
-  }, [tableColumns]);
+  }, [props.visibleColumns]);
   const fakeSequenceMode = React.useMemo(
     () => isFakeSequenceMode(props.rows, props.activeProfile),
     [props.activeProfile, props.rows],

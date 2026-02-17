@@ -9,7 +9,9 @@ import { createVictoriaLogsClient } from "./vicstack/victoriaLogsClient";
 async function startServer() {
   const config = loadConfig();
   let isDatabaseReady = false;
-  const { database, logsViewSettingsStore } = initializeDatabase(config.databasePath);
+  const { database, logsViewSettingsStore, columnConfigStore } = initializeDatabase(
+    config.databasePath,
+  );
   isDatabaseReady = true;
   const activeLogProfile = loadLogProfile({
     profilePath: config.logsProfilePath,
@@ -27,6 +29,7 @@ async function startServer() {
     services: {
       isDatabaseReady: () => isDatabaseReady,
       logsViewSettingsStore,
+      columnConfigStore,
       victoriaLogsClient,
       getActiveLogProfile: () => activeLogProfile,
       logsCursorTransportMode: config.logsCursorDebugRaw ? "json" : "encoded",

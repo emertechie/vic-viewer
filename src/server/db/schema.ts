@@ -18,3 +18,17 @@ export const logsViewSettingsTable = sqliteTable("logs_view_settings", {
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
 });
+
+/** Per-profile column visibility, ordering and per-column settings. */
+export const columnConfigsTable = sqliteTable("column_configs", {
+  /** Profile id (e.g. "dotnet-opentelemetry"). */
+  profileId: text("profile_id").primaryKey(),
+  /** JSON-serialised ColumnConfig (visible columns in display order). */
+  config: text("config").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});

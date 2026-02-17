@@ -8,6 +8,13 @@
       "when": 1771101631772,
       "tag": "0000_wealthy_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1771200000000,
+      "tag": "0001_column_configs",
+      "breakpoints": true
     }
   ]
 }

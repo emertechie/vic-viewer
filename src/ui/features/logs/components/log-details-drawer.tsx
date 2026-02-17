@@ -2,7 +2,7 @@ import * as React from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { TooltipProvider } from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
-import type { LogProfile, LogRow } from "../api/types";
+import type { ColumnConfigEntry, LogProfile, LogRow } from "../api/types";
 import { resolveCoreFieldDisplayText } from "../state/profile-fields";
 import { LogDetailsFieldSetSection } from "./log-details-field-set-section";
 import { buildProfileFieldSets } from "./log-details-field-sets";
@@ -40,6 +40,7 @@ function DrawerNavigationButton(props: {
 export function LogDetailsDrawer(props: {
   row: LogRow | null;
   activeProfile: LogProfile;
+  visibleColumns: ColumnConfigEntry[];
   selectedKey?: string;
   canSelectPrevious: boolean;
   canSelectNext: boolean;
@@ -47,9 +48,15 @@ export function LogDetailsDrawer(props: {
   onSelectNext: () => void;
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
+  onToggleColumn: (fieldId: string, field?: string, fields?: string[], title?: string) => void;
 }) {
   const { copyToClipboard } = useClipboard();
   const [wrapRawJson, setWrapRawJson] = React.useState(false);
+
+  const visibleColumnIds = React.useMemo(
+    () => new Set(props.visibleColumns.map((col) => col.id)),
+    [props.visibleColumns],
+  );
 
   const isOpen = Boolean(props.selectedKey);
   const traceId = React.useMemo(() => {
@@ -126,8 +133,10 @@ export function LogDetailsDrawer(props: {
                   key={fieldSet.id}
                   fieldSet={fieldSet}
                   traceId={traceId}
+                  visibleColumnIds={visibleColumnIds}
                   onOpenTrace={props.onOpenTrace}
                   onCopy={copyToClipboard}
+                  onToggleColumn={props.onToggleColumn}
                 />
               ))}
               <LogDetailsRawJsonSection
