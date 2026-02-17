@@ -59,7 +59,7 @@ export function LogDetailsDrawer(props: {
         />
       ) : null}
       <aside
-        className={`absolute inset-y-0 right-0 z-20 flex w-[500px] max-w-[92vw] flex-col border-l border-border bg-card transition-transform duration-150 ${
+        className={`absolute inset-y-0 right-0 z-20 flex w-[500px] lg:w-[700px] max-w-[92vw] flex-col border-l border-border bg-card transition-transform duration-150 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
