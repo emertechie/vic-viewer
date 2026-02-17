@@ -8,3 +8,4 @@
 - [x] Two small changes: Add a clear / "x" button to the search bar so that pressing it will replace any existing search with "\*". It should not auto-execute the query though. Then, add some background colour to the log table's header (like a light grey in light mode), to help differentiate it.
 - [x] make log details 700px wide in desktop mode, 500px otherwise
 - [x] if the "Range" dropdown control in `src/ui/features/logs/components/logs-query-controls.tsx` is changed: as long as the "absolute" value is not selected, then immediately trigger search. Also immediately trigger search if the "x" button in the "LogsQL" search bar is clicked
+- [x] When viewing detail of one log, can use up/down KB to navigate to prev/next log without needing to close tray. Add some KB icons to hint to the user about the functionality. Perhaps put up/down icons beside the "Close" button at the header of the Log Details slideout. With a tooltip that explains what will happen

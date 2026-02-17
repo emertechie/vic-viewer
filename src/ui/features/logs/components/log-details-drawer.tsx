@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { TooltipProvider } from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
 import type { LogProfile, LogRow } from "../api/types";
@@ -17,10 +18,33 @@ function DrawerEmptyState(props: { selectedKey?: string }) {
   );
 }
 
+function DrawerNavigationButton(props: {
+  ariaLabel: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={props.ariaLabel}
+      onClick={props.onClick}
+      disabled={props.disabled}
+      className="inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card text-foreground transition-opacity enabled:hover:bg-accent disabled:opacity-45"
+    >
+      {props.children}
+    </button>
+  );
+}
+
 export function LogDetailsDrawer(props: {
   row: LogRow | null;
   activeProfile: LogProfile;
   selectedKey?: string;
+  canSelectPrevious: boolean;
+  canSelectNext: boolean;
+  onSelectPrevious: () => void;
+  onSelectNext: () => void;
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
 }) {
@@ -68,13 +92,31 @@ export function LogDetailsDrawer(props: {
             <h2 className="text-sm font-semibold">Log Details</h2>
             <p className="text-[11px] text-muted-foreground">Select a log row to inspect fields</p>
           </div>
-          <button
-            type="button"
-            onClick={props.onClose}
-            className="rounded border border-input px-2 py-1 text-xs"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <DrawerNavigationButton
+                ariaLabel="Show previous log"
+                onClick={props.onSelectPrevious}
+                disabled={!props.canSelectPrevious}
+              >
+                <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+              </DrawerNavigationButton>
+              <DrawerNavigationButton
+                ariaLabel="Show next log"
+                onClick={props.onSelectNext}
+                disabled={!props.canSelectNext}
+              >
+                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+              </DrawerNavigationButton>
+            </div>
+            <button
+              type="button"
+              onClick={props.onClose}
+              className="rounded border border-input px-2 py-1 text-xs"
+            >
+              Close
+            </button>
+          </div>
         </header>
         <div className="flex-1 overflow-auto px-3 py-2">
           {props.row ? (

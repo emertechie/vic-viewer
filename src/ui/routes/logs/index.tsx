@@ -5,6 +5,7 @@ import { LogDetailsDrawer } from "@/ui/features/logs/components/log-details-draw
 import { LogsQueryControls } from "@/ui/features/logs/components/logs-query-controls";
 import { LogsTable } from "@/ui/features/logs/components/logs-table";
 import { useActiveLogProfile } from "@/ui/features/logs/hooks/use-active-log-profile";
+import { useKeyboardRowNavigation } from "@/ui/features/logs/hooks/use-keyboard-row-navigation";
 import { useLogsViewer } from "@/ui/features/logs/hooks/use-logs-viewer";
 import {
   parseLogsSearch,
@@ -17,6 +18,11 @@ export const Route = createFileRoute("/logs/")({
   component: LogsPage,
 });
 
+function getAdjacentRowKey(rows: LogRow[], selectedRowIndex: number, step: -1 | 1): string | null {
+  const nextRow = rows[selectedRowIndex + step];
+  return nextRow ? nextRow.key : null;
+}
+
 function LogsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
@@ -28,10 +34,59 @@ function LogsPage() {
       ? activeProfile.error.message
       : "Failed to load active log profile"
     : null;
-  const selectedRow = React.useMemo(
-    () => viewer.rows.find((row) => row.key === search.selected) ?? null,
-    [search.selected, viewer.rows],
+  const selectedRowState = React.useMemo(() => {
+    const index = viewer.rows.findIndex((row) => row.key === search.selected);
+    return {
+      row: index > -1 ? viewer.rows[index] : null,
+      index,
+    };
+  }, [search.selected, viewer.rows]);
+  const selectedRow = selectedRowState.row;
+  const selectedRowIndex = selectedRowState.index;
+
+  const setSelectedRow = React.useCallback(
+    (selectedKey: string | undefined) => {
+      navigate({
+        search: (previous) => ({
+          ...previous,
+          selected: selectedKey,
+        }),
+        replace: true,
+      });
+    },
+    [navigate],
   );
+
+  const canSelectPrevious = selectedRowIndex > 0;
+  const canSelectNext = selectedRowIndex > -1 && selectedRowIndex < viewer.rows.length - 1;
+
+  const onSelectRelativeRow = React.useCallback(
+    (step: -1 | 1) => {
+      const nextRowKey = getAdjacentRowKey(viewer.rows, selectedRowIndex, step);
+      if (!nextRowKey) {
+        return;
+      }
+
+      setSelectedRow(nextRowKey);
+    },
+    [selectedRowIndex, setSelectedRow, viewer.rows],
+  );
+
+  const onSelectPrevious = React.useCallback(() => {
+    onSelectRelativeRow(-1);
+  }, [onSelectRelativeRow]);
+
+  const onSelectNext = React.useCallback(() => {
+    onSelectRelativeRow(1);
+  }, [onSelectRelativeRow]);
+
+  useKeyboardRowNavigation({
+    enabled: Boolean(search.selected),
+    canSelectPrevious,
+    canSelectNext,
+    onSelectPrevious,
+    onSelectNext,
+  });
 
   const onApplySearch = React.useCallback(
     (nextSearch: LogsSearch) => {
@@ -80,26 +135,14 @@ function LogsPage() {
 
   const onSelectRow = React.useCallback(
     (row: LogRow) => {
-      navigate({
-        search: (previous) => ({
-          ...previous,
-          selected: row.key,
-        }),
-        replace: true,
-      });
+      setSelectedRow(row.key);
     },
-    [navigate],
+    [setSelectedRow],
   );
 
   const onCloseDrawer = React.useCallback(() => {
-    navigate({
-      search: (previous) => ({
-        ...previous,
-        selected: undefined,
-      }),
-      replace: true,
-    });
-  }, [navigate]);
+    setSelectedRow(undefined);
+  }, [setSelectedRow]);
 
   const onOpenTrace = React.useCallback(
     (traceId: string) => {
@@ -162,6 +205,10 @@ function LogsPage() {
           selectedKey={search.selected}
           row={selectedRow}
           activeProfile={activeProfile.data}
+          canSelectPrevious={canSelectPrevious}
+          canSelectNext={canSelectNext}
+          onSelectPrevious={onSelectPrevious}
+          onSelectNext={onSelectNext}
           onClose={onCloseDrawer}
           onOpenTrace={onOpenTrace}
         />
