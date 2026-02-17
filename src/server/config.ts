@@ -1,5 +1,9 @@
 import * as path from "node:path";
+import { config as dotenvConfig } from "dotenv";
 import { z } from "zod";
+
+// Load environment variables from .env file
+dotenvConfig();
 
 const envSchema = z.object({
   API_HOST: z.string().default("0.0.0.0"),
