@@ -30,6 +30,11 @@ function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   );
 }
 
+function getAdjacentRowKey(rows: LogRow[], selectedRowIndex: number, step: -1 | 1): string | null {
+  const nextRow = rows[selectedRowIndex + step];
+  return nextRow ? nextRow.key : null;
+}
+
 function LogsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
@@ -118,6 +123,24 @@ function LogsPage() {
     });
   }, [navigate]);
 
+  const onSelectRelativeRow = React.useCallback(
+    (step: -1 | 1) => {
+      const nextRowKey = getAdjacentRowKey(viewer.rows, selectedRowIndex, step);
+      if (!nextRowKey) {
+        return;
+      }
+
+      navigate({
+        search: (previous) => ({
+          ...previous,
+          selected: nextRowKey,
+        }),
+        replace: true,
+      });
+    },
+    [navigate, selectedRowIndex, viewer.rows],
+  );
+
   React.useEffect(() => {
     if (!search.selected) {
       return;
@@ -132,9 +155,9 @@ function LogsPage() {
         return;
       }
 
-      const step = event.key === "ArrowUp" ? -1 : 1;
-      const nextRow = viewer.rows[selectedRowIndex + step];
-      if (!nextRow) {
+      const step: -1 | 1 = event.key === "ArrowUp" ? -1 : 1;
+      const nextRowKey = getAdjacentRowKey(viewer.rows, selectedRowIndex, step);
+      if (!nextRowKey) {
         return;
       }
 
@@ -142,7 +165,7 @@ function LogsPage() {
       navigate({
         search: (previous) => ({
           ...previous,
-          selected: nextRow.key,
+          selected: nextRowKey,
         }),
         replace: true,
       });
@@ -217,6 +240,8 @@ function LogsPage() {
           activeProfile={activeProfile.data}
           canSelectPrevious={selectedRowIndex > 0}
           canSelectNext={selectedRowIndex > -1 && selectedRowIndex < viewer.rows.length - 1}
+          onSelectPrevious={() => onSelectRelativeRow(-1)}
+          onSelectNext={() => onSelectRelativeRow(1)}
           onClose={onCloseDrawer}
           onOpenTrace={onOpenTrace}
         />

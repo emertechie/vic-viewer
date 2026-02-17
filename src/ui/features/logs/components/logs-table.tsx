@@ -126,12 +126,27 @@ export function LogsTable(props: {
   });
 
   const rowModel = table.getRowModel();
+  const selectedRowIndex = React.useMemo(() => {
+    if (!props.selectedRowKey) {
+      return -1;
+    }
+
+    return props.rows.findIndex((row) => row.key === props.selectedRowKey);
+  }, [props.rows, props.selectedRowKey]);
   const virtualizer = useVirtualizer({
     count: rowModel.rows.length,
     getScrollElement: () => containerRef.current,
     estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 12,
   });
+
+  React.useEffect(() => {
+    if (selectedRowIndex < 0) {
+      return;
+    }
+
+    virtualizer.scrollToIndex(selectedRowIndex, { align: "auto" });
+  }, [selectedRowIndex, virtualizer]);
 
   if (props.isLoadingInitial) {
     return (

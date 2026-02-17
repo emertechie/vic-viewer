@@ -1,11 +1,6 @@
 import * as React from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/ui/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
 import type { LogProfile, LogRow } from "../api/types";
 import { resolveCoreFieldDisplayText } from "../state/profile-fields";
@@ -29,6 +24,8 @@ export function LogDetailsDrawer(props: {
   selectedKey?: string;
   canSelectPrevious: boolean;
   canSelectNext: boolean;
+  onSelectPrevious: () => void;
+  onSelectNext: () => void;
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
 }) {
@@ -77,31 +74,26 @@ export function LogDetailsDrawer(props: {
             <p className="text-[11px] text-muted-foreground">Select a log row to inspect fields</p>
           </div>
           <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <span
-                    className={`inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card ${
-                      props.canSelectPrevious ? "text-foreground" : "opacity-45"
-                    }`}
-                    aria-hidden
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </span>
-                  <span
-                    className={`inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card ${
-                      props.canSelectNext ? "text-foreground" : "opacity-45"
-                    }`}
-                    aria-hidden
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={6}>
-                Press Up/Down arrow keys to view previous or next log
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <button
+                type="button"
+                aria-label="Show previous log"
+                onClick={props.onSelectPrevious}
+                disabled={!props.canSelectPrevious}
+                className="inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card text-foreground transition-opacity enabled:hover:bg-accent disabled:opacity-45"
+              >
+                <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                aria-label="Show next log"
+                onClick={props.onSelectNext}
+                disabled={!props.canSelectNext}
+                className="inline-flex h-6 w-6 items-center justify-center rounded border border-input bg-card text-foreground transition-opacity enabled:hover:bg-accent disabled:opacity-45"
+              >
+                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
             <button
               type="button"
               onClick={props.onClose}
