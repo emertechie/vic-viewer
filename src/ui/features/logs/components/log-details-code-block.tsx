@@ -19,12 +19,13 @@ export function LogDetailsCodeBlock(props: {
       showLanguage={false}
       addDefaultStyles={false}
       className={cn(
-        "overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px] [&_code]:font-mono [&_code]:text-[11px]",
+        "overflow-auto rounded border border-border p-2 text-[11px] [&_code]:block [&_code]:font-mono [&_code]:text-[11px]",
         props.wrapText
-          ? "[&_code]:whitespace-pre-wrap [&_code]:break-all"
-          : "[&_code]:whitespace-pre",
+          ? "[&_code]:min-w-0 [&_code]:whitespace-pre-wrap [&_code]:break-all"
+          : "[&_code]:min-w-max [&_code]:whitespace-pre",
         props.className,
       )}
+      style={{ backgroundColor: "var(--shiki-background)" }}
     >
       {props.code}
     </ShikiHighlighter>
