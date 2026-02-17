@@ -167,7 +167,7 @@ export function LogsTableBody(props: {
                 key={row.id}
                 type="button"
                 onClick={() => props.onSelectRow?.(row.original)}
-                className={`appearance-none bg-transparent text-left ${rowClassName}`}
+                className={`appearance-none text-left ${rowClassName}`}
                 style={rowStyle}
               >
                 {rowCells}
