@@ -1,19 +1,20 @@
 import type { LogProfile, ProfileFieldSelector } from "../api/types";
-
-type RawLogRecord = Record<string, unknown>;
+import {
+  resolveFieldMatchFromSelector,
+  resolveFieldTextFromSelector,
+  toNonEmptyText,
+  type FieldSelectorLike,
+  type LogRecord as RawLogRecord,
+  type ResolvedFieldMatch,
+} from "../../../../shared/logs/field-resolution";
 
 type ProfileRenderableField = {
   title?: string;
-  field?: string;
-  fields?: string[];
   type?: "sql" | "StructuredLoggingFields" | "RemainingFields";
   id?: string;
-};
+} & FieldSelectorLike;
 
-export type ProfileResolvedFieldMatch = {
-  key: string;
-  value: unknown;
-};
+export type ProfileResolvedFieldMatch = ResolvedFieldMatch;
 
 function toWordsFromFieldName(fieldName: string): string {
   const first = fieldName.replace(/[._-]+/g, " ");
@@ -33,17 +34,13 @@ export function fieldNameToTitle(fieldName: string): string {
 }
 
 export function toDisplayText(value: unknown): string | null {
+  const primitiveText = toNonEmptyText(value);
+  if (primitiveText !== null) {
+    return primitiveText;
+  }
+
   if (value === null || value === undefined) {
     return null;
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
-    return String(value);
   }
 
   try {
@@ -53,40 +50,11 @@ export function toDisplayText(value: unknown): string | null {
   }
 }
 
-function asFieldCandidates(selector: ProfileRenderableField | ProfileFieldSelector): string[] {
-  if ("field" in selector && typeof selector.field === "string") {
-    return [selector.field];
-  }
-
-  if ("fields" in selector && Array.isArray(selector.fields)) {
-    return selector.fields;
-  }
-
-  return [];
-}
-
 export function resolveFieldMatch(
   record: RawLogRecord,
   selector: ProfileRenderableField | ProfileFieldSelector,
 ): ProfileResolvedFieldMatch | null {
-  const candidates = asFieldCandidates(selector);
-  for (const fieldName of candidates) {
-    if (!(fieldName in record)) {
-      continue;
-    }
-
-    const value = record[fieldName];
-    if (value === null || value === undefined) {
-      continue;
-    }
-
-    return {
-      key: fieldName,
-      value,
-    };
-  }
-
-  return null;
+  return resolveFieldMatchFromSelector(record, selector);
 }
 
 export function resolveFieldDisplayText(
@@ -153,5 +121,5 @@ export function resolveCoreFieldDisplayText(options: {
     return null;
   }
 
-  return resolveFieldDisplayText(options.record, selector);
+  return resolveFieldTextFromSelector(options.record, selector);
 }

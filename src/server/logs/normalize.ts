@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
-import type { ProfileFieldSelector } from "../schemas/logProfiles";
 import { logRowSchema, type LogRow } from "../schemas/logs";
 import type { LogProfile } from "../schemas/logProfiles";
+import {
+  resolveFieldTextFromSelector,
+  toNonEmptyText,
+  type LogRecord as RawLogRecord,
+} from "../../shared/logs/field-resolution";
 import { extractLogSequence } from "../../shared/logs/sequence";
-
-type RawLogRecord = Record<string, unknown>;
 
 type LogRowKeyParts = {
   streamId: string | null;
@@ -43,45 +45,6 @@ function buildLogRowKeyFromRow(
     time: row.time,
     tieBreaker: row.tieBreaker,
   });
-}
-
-function toNonEmptyText(value: unknown): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
-    return String(value);
-  }
-
-  return null;
-}
-
-export function resolveProfileFieldText(
-  record: RawLogRecord,
-  selector: ProfileFieldSelector | undefined,
-): string | null {
-  if (!selector) {
-    return null;
-  }
-
-  if ("field" in selector) {
-    return toNonEmptyText(record[selector.field]);
-  }
-
-  for (const field of selector.fields) {
-    const candidate = toNonEmptyText(record[field]);
-    if (candidate !== null) {
-      return candidate;
-    }
-  }
-
-  return null;
 }
 
 function buildSortTargetFromRow(row: LogRow, profile: LogProfile): SortTarget {
@@ -134,18 +97,18 @@ function toIsoDate(value: unknown): string | null {
 
 function buildTieBreaker(record: RawLogRecord, profile: LogProfile): string {
   const tieSource = profile.tieBreaker.fields
-    .map((fieldName) => resolveProfileFieldText(record, { field: fieldName }) ?? "")
+    .map((fieldName) => resolveFieldTextFromSelector(record, { field: fieldName }) ?? "")
     .join(":");
   return createHash("sha1").update(tieSource).digest("hex");
 }
 
 export function normalizeLogRecord(record: RawLogRecord, profile: LogProfile): LogRow | null {
-  const time = toIsoDate(resolveProfileFieldText(record, profile.coreFields.time));
+  const time = toIsoDate(resolveFieldTextFromSelector(record, profile.coreFields.time));
   if (!time) {
     return null;
   }
 
-  const streamId = resolveProfileFieldText(record, profile.coreFields.streamId);
+  const streamId = resolveFieldTextFromSelector(record, profile.coreFields.streamId);
   const tieBreaker = buildTieBreaker(record, profile);
 
   return logRowSchema.parse({
@@ -165,7 +128,7 @@ export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
 }
 
 export function extractLogSequenceFromRow(row: LogRow, profile: LogProfile): number | null {
-  const messageFromRaw = resolveProfileFieldText(row.raw, profile.coreFields.message);
+  const messageFromRaw = resolveFieldTextFromSelector(row.raw, profile.coreFields.message);
   return messageFromRaw ? extractLogSequence(messageFromRaw) : null;
 }
 
@@ -173,7 +136,7 @@ export function extractStreamIdFromRow(
   row: Pick<LogRow, "raw">,
   profile: LogProfile,
 ): string | null {
-  return resolveProfileFieldText(row.raw, profile.coreFields.streamId);
+  return resolveFieldTextFromSelector(row.raw, profile.coreFields.streamId);
 }
 
 export function compareLogRows(left: LogRow, right: LogRow, profile: LogProfile): number {
