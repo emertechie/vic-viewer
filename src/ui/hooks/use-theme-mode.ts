@@ -3,19 +3,19 @@ import * as React from "react";
 const THEME_STORAGE_KEY = "vic-viewer-theme";
 
 export type ThemeMode = "light" | "dark";
-export type ThemeName = "Solarized Light" | "Solarized Dark";
+export type ShikiThemeId = "solarized-light" | "solarized-dark";
 
-export const SHIKI_THEME_NAMES: Record<ThemeMode, ThemeName> = {
-  light: "Solarized Light",
-  dark: "Solarized Dark",
+export const SHIKI_THEME_IDS: Record<ThemeMode, ShikiThemeId> = {
+  light: "solarized-light",
+  dark: "solarized-dark",
 };
 
 type ThemeModeContextValue = {
   theme: ThemeMode;
   toggleTheme: () => void;
   shikiThemes: {
-    light: ThemeName;
-    dark: ThemeName;
+    light: ShikiThemeId;
+    dark: ShikiThemeId;
   };
 };
 
@@ -51,7 +51,7 @@ export function ThemeModeProvider(props: { children: React.ReactNode }) {
     () => ({
       theme,
       toggleTheme,
-      shikiThemes: SHIKI_THEME_NAMES,
+      shikiThemes: SHIKI_THEME_IDS,
     }),
     [theme, toggleTheme],
   );
