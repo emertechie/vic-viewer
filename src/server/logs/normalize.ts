@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { logRowSchema, type LogRow } from "../schemas/logs";
-
-type RawLogRecord = Record<string, unknown>;
+import type { LogProfile } from "../schemas/logProfiles";
+import {
+  resolveFieldTextFromSelector,
+  toNonEmptyText,
+  type LogRecord as RawLogRecord,
+} from "../../shared/logs/field-resolution";
+import { extractLogSequence } from "../../shared/logs/sequence";
 
 type LogRowKeyParts = {
   streamId: string | null;
@@ -31,29 +36,22 @@ function buildLogRowKey(parts: LogRowKeyParts): string {
   return `${parts.streamId ?? "unknown"}:${parts.time}:${parts.tieBreaker}`;
 }
 
-function buildLogRowKeyFromRow(row: Pick<LogRow, "streamId" | "time" | "tieBreaker">): string {
+function buildLogRowKeyFromRow(
+  row: Pick<LogRow, "time" | "tieBreaker" | "raw">,
+  profile: LogProfile,
+): string {
   return buildLogRowKey({
-    streamId: row.streamId,
+    streamId: extractStreamIdFromRow(row, profile),
     time: row.time,
     tieBreaker: row.tieBreaker,
   });
 }
 
-export function extractLogSequence(message: string): number | null {
-  const sequenceMatch = message.match(/^SEQ:(\d+)/);
-  if (!sequenceMatch) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(sequenceMatch[1], 10);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-function buildSortTargetFromRow(row: LogRow): SortTarget {
+function buildSortTargetFromRow(row: LogRow, profile: LogProfile): SortTarget {
   return {
     time: row.time,
-    key: buildLogRowKeyFromRow(row),
-    sequence: extractLogSequence(row.message),
+    key: buildLogRowKeyFromRow(row, profile),
+    sequence: extractLogSequenceFromRow(row, profile),
   };
 }
 
@@ -83,22 +81,13 @@ function compareSortTargets(left: SortTarget, right: SortTarget): number {
   return left.key.localeCompare(right.key);
 }
 
-function getNullableString(record: RawLogRecord, key: string): string | null {
-  const value = record[key];
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 function toIsoDate(value: unknown): string | null {
-  if (typeof value !== "string") {
+  const asText = toNonEmptyText(value);
+  if (!asText) {
     return null;
   }
 
-  const parsed = new Date(value);
+  const parsed = new Date(asText);
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
@@ -106,36 +95,21 @@ function toIsoDate(value: unknown): string | null {
   return parsed.toISOString();
 }
 
-function buildTieBreaker(record: {
-  streamId: string | null;
-  spanId: string | null;
-  traceId: string | null;
-  message: string;
-}) {
-  const tieSource = `${record.streamId ?? ""}:${record.spanId ?? ""}:${record.traceId ?? ""}:${record.message}`;
+function buildTieBreaker(record: RawLogRecord, profile: LogProfile): string {
+  const tieSource = profile.tieBreaker.fields
+    .map((fieldName) => resolveFieldTextFromSelector(record, { field: fieldName }) ?? "")
+    .join(":");
   return createHash("sha1").update(tieSource).digest("hex");
 }
 
-export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
-  const time = toIsoDate(record["_time"]);
+export function normalizeLogRecord(record: RawLogRecord, profile: LogProfile): LogRow | null {
+  const time = toIsoDate(resolveFieldTextFromSelector(record, profile.coreFields.time));
   if (!time) {
     return null;
   }
 
-  const message = getNullableString(record, "_msg") ?? "";
-  const streamId = getNullableString(record, "_stream_id");
-  const stream = getNullableString(record, "_stream");
-  const severity =
-    getNullableString(record, "severity") ?? getNullableString(record, "SeverityText");
-  const serviceName = getNullableString(record, "service.name");
-  const traceId = getNullableString(record, "trace_id") ?? getNullableString(record, "TraceId");
-  const spanId = getNullableString(record, "span_id") ?? getNullableString(record, "SpanId");
-  const tieBreaker = buildTieBreaker({
-    streamId,
-    spanId,
-    traceId,
-    message,
-  });
+  const streamId = resolveFieldTextFromSelector(record, profile.coreFields.streamId);
+  const tieBreaker = buildTieBreaker(record, profile);
 
   return logRowSchema.parse({
     key: buildLogRowKey({
@@ -145,13 +119,6 @@ export function normalizeLogRecord(record: RawLogRecord): LogRow | null {
     }),
     time,
     tieBreaker,
-    message,
-    streamId,
-    stream,
-    severity,
-    serviceName,
-    traceId,
-    spanId,
     raw: record,
   });
 }
@@ -160,24 +127,47 @@ export function extractRawLogRecords(payload: unknown): RawLogRecord[] {
   return toRawLogRecordArray(payload) ?? [];
 }
 
-export function compareLogRows(left: LogRow, right: LogRow): number {
-  return compareSortTargets(buildSortTargetFromRow(left), buildSortTargetFromRow(right));
+export function extractLogSequenceFromRow(row: LogRow, profile: LogProfile): number | null {
+  const messageFromRaw = resolveFieldTextFromSelector(row.raw, profile.coreFields.message);
+  return messageFromRaw ? extractLogSequence(messageFromRaw) : null;
+}
+
+export function extractStreamIdFromRow(
+  row: Pick<LogRow, "raw">,
+  profile: LogProfile,
+): string | null {
+  return resolveFieldTextFromSelector(row.raw, profile.coreFields.streamId);
+}
+
+export function compareLogRows(left: LogRow, right: LogRow, profile: LogProfile): number {
+  return compareSortTargets(
+    buildSortTargetFromRow(left, profile),
+    buildSortTargetFromRow(right, profile),
+  );
 }
 
 export function isBeforeAnchor(
   candidate: LogRow,
   anchor: { time: string; streamId: string | null; tieBreaker: string; sequence?: number },
+  profile: LogProfile,
 ): boolean {
   return (
-    compareSortTargets(buildSortTargetFromRow(candidate), buildSortTargetFromAnchor(anchor)) < 0
+    compareSortTargets(
+      buildSortTargetFromRow(candidate, profile),
+      buildSortTargetFromAnchor(anchor),
+    ) < 0
   );
 }
 
 export function isAfterAnchor(
   candidate: LogRow,
   anchor: { time: string; streamId: string | null; tieBreaker: string; sequence?: number },
+  profile: LogProfile,
 ): boolean {
   return (
-    compareSortTargets(buildSortTargetFromRow(candidate), buildSortTargetFromAnchor(anchor)) > 0
+    compareSortTargets(
+      buildSortTargetFromRow(candidate, profile),
+      buildSortTargetFromAnchor(anchor),
+    ) > 0
   );
 }

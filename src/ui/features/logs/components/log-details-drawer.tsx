@@ -1,71 +1,53 @@
 import * as React from "react";
-import { CopyButton } from "@/components/copy-button";
-import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useClipboard } from "@/hooks/use-clipboard";
-import type { LogRow } from "../api/types";
+import type { LogProfile, LogRow } from "../api/types";
+import { resolveCoreFieldDisplayText } from "../state/profile-fields";
+import { LogDetailsFieldSetSection } from "./log-details-field-set-section";
+import { buildProfileFieldSets } from "./log-details-field-sets";
+import { LogDetailsRawJsonSection } from "./log-details-raw-json-section";
 
-type CopyHandler = (value: string) => Promise<void> | void;
-
-function parseStreamLabels(stream: string | null): Array<{ key: string; value: string }> {
-  if (!stream) {
-    return [];
-  }
-
-  const labels: Array<{ key: string; value: string }> = [];
-  const regex = /([A-Za-z0-9_.-]+)="([^"]*)"/g;
-  let match: RegExpExecArray | null = regex.exec(stream);
-  while (match) {
-    labels.push({
-      key: match[1] ?? "",
-      value: match[2] ?? "",
-    });
-    match = regex.exec(stream);
-  }
-
-  return labels;
-}
-
-function DetailRow(props: { label: string; value: string | null; onCopy?: CopyHandler }) {
-  const displayValue = props.value ?? "—";
-  const canCopy = Boolean(props.value);
-
-  const handleCopyValue = React.useCallback(async () => {
-    if (!props.value || !props.onCopy) {
-      return;
-    }
-
-    await props.onCopy(props.value);
-  }, [props.onCopy, props.value]);
-
+function DrawerEmptyState(props: { selectedKey?: string }) {
   return (
-    <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
-      <span className="text-muted-foreground">{props.label}</span>
-      <span className="break-all text-foreground">{displayValue}</span>
-      <CopyButton
-        label={props.label}
-        disabled={!canCopy || !props.onCopy}
-        onCopy={handleCopyValue}
-      />
+    <div className="rounded border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+      {props.selectedKey
+        ? "Selected log is no longer loaded in the current window."
+        : "No log selected."}
     </div>
   );
 }
 
 export function LogDetailsDrawer(props: {
   row: LogRow | null;
+  activeProfile: LogProfile;
   selectedKey?: string;
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
 }) {
   const { copyToClipboard } = useClipboard();
   const [wrapRawJson, setWrapRawJson] = React.useState(false);
-  const streamLabels = React.useMemo(
-    () => parseStreamLabels(props.row?.stream ?? null),
-    [props.row?.stream],
-  );
 
   const isOpen = Boolean(props.selectedKey);
-  const traceId = props.row?.traceId ?? null;
+  const traceId = React.useMemo(() => {
+    if (!props.row) {
+      return null;
+    }
+
+    return (
+      resolveCoreFieldDisplayText({
+        record: props.row.raw,
+        profile: props.activeProfile,
+        coreField: "traceId",
+      }) ?? null
+    );
+  }, [props.activeProfile, props.row]);
+  const fieldSets = React.useMemo(() => {
+    if (!props.row) {
+      return [];
+    }
+
+    return buildProfileFieldSets(props.row, props.activeProfile);
+  }, [props.activeProfile, props.row]);
 
   return (
     <TooltipProvider>
@@ -97,91 +79,23 @@ export function LogDetailsDrawer(props: {
         <div className="flex-1 overflow-auto px-3 py-2">
           {props.row ? (
             <div className="space-y-4">
-              <section>
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Core
-                </h3>
-                <DetailRow label="Time" value={props.row.time} onCopy={copyToClipboard} />
-                <DetailRow label="Severity" value={props.row.severity} onCopy={copyToClipboard} />
-                <DetailRow label="Service" value={props.row.serviceName} onCopy={copyToClipboard} />
-                <DetailRow label="Message" value={props.row.message} onCopy={copyToClipboard} />
-                <DetailRow label="StreamId" value={props.row.streamId} onCopy={copyToClipboard} />
-              </section>
-              <section>
-                <div className="mb-1 flex items-center justify-between">
-                  <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Trace / Span
-                  </h3>
-                  {traceId ? (
-                    <button
-                      type="button"
-                      onClick={() => props.onOpenTrace(traceId)}
-                      className="rounded border border-primary/40 px-2 py-0.5 text-[10px] text-primary"
-                    >
-                      Open Trace
-                    </button>
-                  ) : null}
-                </div>
-                <DetailRow label="TraceId" value={props.row.traceId} onCopy={copyToClipboard} />
-                <DetailRow label="SpanId" value={props.row.spanId} onCopy={copyToClipboard} />
-                <DetailRow
-                  label="RequestId"
-                  value={
-                    typeof props.row.raw.RequestId === "string" ? props.row.raw.RequestId : null
-                  }
+              {fieldSets.map((fieldSet) => (
+                <LogDetailsFieldSetSection
+                  key={fieldSet.id}
+                  fieldSet={fieldSet}
+                  traceId={traceId}
+                  onOpenTrace={props.onOpenTrace}
                   onCopy={copyToClipboard}
                 />
-              </section>
-              <section>
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Stream Labels
-                </h3>
-                {streamLabels.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No parsed stream labels.</p>
-                ) : (
-                  streamLabels.map((label) => (
-                    <DetailRow
-                      key={label.key}
-                      label={label.key}
-                      value={label.value}
-                      onCopy={copyToClipboard}
-                    />
-                  ))
-                )}
-              </section>
-              <section>
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Raw JSON
-                </h3>
-                <pre
-                  className={`max-h-72 overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px] ${
-                    wrapRawJson ? "whitespace-pre-wrap break-all" : "whitespace-pre"
-                  }`}
-                >
-                  {JSON.stringify(props.row.raw, null, 2)}
-                </pre>
-                <div className="mb-2 mt-2 flex justify-end">
-                  <label
-                    htmlFor="wrap-raw-json"
-                    className="inline-flex items-center gap-2 text-xs text-muted-foreground"
-                  >
-                    Wrap text
-                    <Switch
-                      id="wrap-raw-json"
-                      size="sm"
-                      checked={wrapRawJson}
-                      onCheckedChange={setWrapRawJson}
-                    />
-                  </label>
-                </div>
-              </section>
+              ))}
+              <LogDetailsRawJsonSection
+                raw={props.row.raw}
+                wrapRawJson={wrapRawJson}
+                onWrapRawJsonChange={setWrapRawJson}
+              />
             </div>
           ) : (
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-              {props.selectedKey
-                ? "Selected log is no longer loaded in the current window."
-                : "No log selected."}
-            </div>
+            <DrawerEmptyState selectedKey={props.selectedKey} />
           )}
         </div>
       </aside>

@@ -5,9 +5,12 @@ import {
   type LogsCursor,
   type LogsQueryRequest,
 } from "../schemas/logs";
-import { extractLogSequence } from "./normalize";
+import type { LogProfile } from "../schemas/logProfiles";
+import { extractLogSequenceFromRow, extractStreamIdFromRow } from "./normalize";
 
-export type CursorQueryContext = Pick<LogsQueryRequest, "query" | "start" | "end">;
+export type CursorQueryContext = Pick<LogsQueryRequest, "query" | "start" | "end"> & {
+  profile: Pick<LogProfile, "id" | "version">;
+};
 export type CursorTransportMode = "encoded" | "json";
 
 export function buildQueryHash(context: CursorQueryContext): string {
@@ -19,6 +22,7 @@ export function buildQueryHash(context: CursorQueryContext): string {
           start: context.start,
           end: context.end,
         },
+        profile: context.profile,
         sort: "time-asc-sequence-asc-key-asc",
       }),
     )
@@ -68,6 +72,7 @@ export function serializeCursor(
 export function buildCursorFromRow(options: {
   direction: "older" | "newer";
   row: LogRow;
+  profile: LogProfile;
   queryHash: string;
   window: { start: string; end: string };
 }): LogsCursor {
@@ -78,18 +83,9 @@ export function buildCursorFromRow(options: {
     window: options.window,
     anchor: {
       time: options.row.time,
-      streamId: options.row.streamId,
+      streamId: extractStreamIdFromRow(options.row, options.profile),
       tieBreaker: options.row.tieBreaker,
-      sequence: extractLogSequence(options.row.message) ?? undefined,
+      sequence: extractLogSequenceFromRow(options.row, options.profile) ?? undefined,
     },
   });
-}
-
-export function createCursorFromRow(options: {
-  direction: "older" | "newer";
-  row: LogRow;
-  queryHash: string;
-  window: { start: string; end: string };
-}): string {
-  return encodeCursor(buildCursorFromRow(options));
 }

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { LogProfile } from "../schemas/logProfiles";
 import type { VictoriaLogsClient } from "../vicstack/victoriaLogsClient";
 import {
   logsQueryRequestSchema,
@@ -43,30 +44,37 @@ function resolveRequestWindow(request: LogsQueryRequest, cursor: LogsCursor | nu
   };
 }
 
-function applyCursorFilter(rows: LogRow[], cursor: LogsCursor | null): LogRow[] {
+function applyCursorFilter(
+  rows: LogRow[],
+  cursor: LogsCursor | null,
+  activeLogProfile: LogProfile,
+): LogRow[] {
   if (!cursor) {
     return rows;
   }
 
+  const anchor = cursor.anchor;
+
   if (cursor.dir === "older") {
-    return rows.filter((row) =>
-      isBeforeAnchor(row, {
-        time: cursor.anchor.time,
-        streamId: cursor.anchor.streamId,
-        tieBreaker: cursor.anchor.tieBreaker,
-        sequence: cursor.anchor.sequence,
-      }),
-    );
+    return rows.filter((row) => isBeforeAnchor(row, anchor, activeLogProfile));
   }
 
-  return rows.filter((row) =>
-    isAfterAnchor(row, {
-      time: cursor.anchor.time,
-      streamId: cursor.anchor.streamId,
-      tieBreaker: cursor.anchor.tieBreaker,
-      sequence: cursor.anchor.sequence,
-    }),
-  );
+  return rows.filter((row) => isAfterAnchor(row, anchor, activeLogProfile));
+}
+
+function normalizeRows(
+  rawRecords: Array<Record<string, unknown>>,
+  activeLogProfile: LogProfile,
+): LogRow[] {
+  const normalizedRows: LogRow[] = [];
+  for (const rawRecord of rawRecords) {
+    const row = normalizeLogRecord(rawRecord, activeLogProfile);
+    if (row) {
+      normalizedRows.push(row);
+    }
+  }
+
+  return normalizedRows;
 }
 
 function clampLimit(limit: number): number {
@@ -112,11 +120,41 @@ function assertValidCursorContext(
   }
 }
 
+function buildDirectionalCursor(options: {
+  hasMoreRows: boolean;
+  row: LogRow | undefined;
+  direction: "older" | "newer";
+  profile: LogProfile;
+  queryHash: string;
+  window: Pick<LogsQueryRequest, "start" | "end">;
+  cursorTransportMode: CursorTransportMode;
+}): string | LogsCursor | undefined {
+  if (!options.hasMoreRows || !options.row) {
+    return undefined;
+  }
+
+  return serializeCursor(
+    buildCursorFromRow({
+      direction: options.direction,
+      row: options.row,
+      profile: options.profile,
+      queryHash: options.queryHash,
+      window: options.window,
+    }),
+    options.cursorTransportMode,
+  );
+}
+
 export function registerLogsRoutes(
   app: FastifyInstance,
-  options: { victoriaLogsClient: VictoriaLogsClient; cursorTransportMode: CursorTransportMode },
+  options: {
+    victoriaLogsClient: VictoriaLogsClient;
+    cursorTransportMode: CursorTransportMode;
+    getActiveLogProfile: () => LogProfile;
+  },
 ) {
   app.post("/api/logs/query", async (request, reply) => {
+    const activeLogProfile = options.getActiveLogProfile();
     const parsedRequest = logsQueryRequestSchema.parse(request.body);
     const normalizedRequest = {
       ...parsedRequest,
@@ -128,6 +166,10 @@ export function registerLogsRoutes(
       query: normalizedRequest.query,
       start: normalizedRequest.start,
       end: normalizedRequest.end,
+      profile: {
+        id: activeLogProfile.id,
+        version: activeLogProfile.version,
+      },
     });
 
     let cursor: LogsCursor | null = null;
@@ -155,6 +197,10 @@ export function registerLogsRoutes(
     }
 
     const window = resolveRequestWindow(normalizedRequest, cursor);
+    const requestWindow = {
+      start: normalizedRequest.start,
+      end: normalizedRequest.end,
+    };
 
     request.log.info(
       {
@@ -164,6 +210,10 @@ export function registerLogsRoutes(
         resolvedWindow: window,
         decodedCursor: cursor,
         cursorTransportMode: options.cursorTransportMode,
+        activeLogProfile: {
+          id: activeLogProfile.id,
+          version: activeLogProfile.version,
+        },
       },
       "Received logs query request",
     );
@@ -202,11 +252,10 @@ export function registerLogsRoutes(
       );
     }
 
-    const rows = applyCursorFilter(
-      rawRecords.map(normalizeLogRecord).filter((row): row is LogRow => Boolean(row)),
-      cursor,
-    )
-      .sort(compareLogRows)
+    const normalizedRows = normalizeRows(rawRecords, activeLogProfile);
+    const filteredRows = applyCursorFilter(normalizedRows, cursor, activeLogProfile);
+    const rows = [...filteredRows]
+      .sort((left, right) => compareLogRows(left, right, activeLogProfile))
       .slice(0, normalizedRequest.limit);
 
     const oldestRow = rows[0];
@@ -223,36 +272,24 @@ export function registerLogsRoutes(
       pageInfo: {
         hasOlder,
         hasNewer,
-        olderCursor:
-          hasOlder && oldestRow
-            ? serializeCursor(
-                buildCursorFromRow({
-                  direction: "older",
-                  row: oldestRow,
-                  queryHash,
-                  window: {
-                    start: normalizedRequest.start,
-                    end: normalizedRequest.end,
-                  },
-                }),
-                options.cursorTransportMode,
-              )
-            : undefined,
-        newerCursor:
-          hasNewer && newestRow
-            ? serializeCursor(
-                buildCursorFromRow({
-                  direction: "newer",
-                  row: newestRow,
-                  queryHash,
-                  window: {
-                    start: normalizedRequest.start,
-                    end: normalizedRequest.end,
-                  },
-                }),
-                options.cursorTransportMode,
-              )
-            : undefined,
+        olderCursor: buildDirectionalCursor({
+          hasMoreRows: hasOlder,
+          row: oldestRow,
+          direction: "older",
+          profile: activeLogProfile,
+          queryHash,
+          window: requestWindow,
+          cursorTransportMode: options.cursorTransportMode,
+        }),
+        newerCursor: buildDirectionalCursor({
+          hasMoreRows: hasNewer,
+          row: newestRow,
+          direction: "newer",
+          profile: activeLogProfile,
+          queryHash,
+          window: requestWindow,
+          cursorTransportMode: options.cursorTransportMode,
+        }),
       },
     });
 

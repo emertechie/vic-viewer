@@ -1,94 +1,73 @@
 import * as React from "react";
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { LogRow, LogsPageInfo } from "../api/types";
+import type { LogProfile, LogRow, LogsPageInfo } from "../api/types";
+import { useLogsTablePaging } from "../hooks/use-logs-table-paging";
 import { getPageInfoOrDefault } from "../state/paging";
+import {
+  getProfileFieldIdentifier,
+  getProfileFieldLabel,
+  resolveFieldDisplayText,
+} from "../state/profile-fields";
+import { isFakeSequenceMode, LogsTableBody } from "./logs-table-body";
+import { LogsTableFooter, LogsTablePagingNotice } from "./logs-table-footer";
+import { LogsTableHeader } from "./logs-table-header";
 
-const columns: ColumnDef<LogRow>[] = [
-  { accessorKey: "time", header: "Time" },
-  { accessorKey: "severity", header: "Level" },
-  { accessorKey: "serviceName", header: "Service" },
-  { accessorKey: "message", header: "Message" },
-  { accessorKey: "traceId", header: "TraceId" },
-  { accessorKey: "spanId", header: "SpanId" },
-];
+type LogsTableColumn = {
+  id: string;
+  title: string;
+  hidden?: boolean;
+  field?: string;
+  fields?: string[];
+};
 
 const ROW_ESTIMATE_PX = 34;
-const SCROLL_THRESHOLD_PX = 180;
+const TABLE_MIN_WIDTH_PX = 1500;
 
-type SequenceCheckStatus = "pass_full" | "pass_partial" | "fail" | "none";
-
-function extractSequence(message: string): number | null {
-  const match = message.match(/^SEQ:(\d+)/);
-  if (!match) {
-    return null;
-  }
-
-  const sequence = Number.parseInt(match[1], 10);
-  return Number.isNaN(sequence) ? null : sequence;
+function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
+  return activeProfile.logTable.columns.map((column) => ({
+    id: getProfileFieldIdentifier(column),
+    title: getProfileFieldLabel(column),
+    hidden: column.hidden,
+    field: column.field,
+    fields: column.fields,
+  }));
 }
 
-function isFakeSequenceMode(rows: LogRow[]): boolean {
-  const sample = rows.slice(0, 20);
-  if (sample.length === 0) {
-    return false;
-  }
+function getGridTemplateColumns(columns: LogsTableColumn[]): string {
+  return columns
+    .map((column) => {
+      const id = column.id.toLowerCase();
+      const title = column.title.toLowerCase();
+      if (id.includes("time") || title === "time") {
+        return "210px";
+      }
 
-  return sample.every((row) => extractSequence(row.message) !== null);
-}
+      if (id.includes("level") || id.includes("severity") || title === "level") {
+        return "90px";
+      }
 
-function getSequenceCheckStatus(rows: LogRow[], index: number): SequenceCheckStatus {
-  const current = rows[index];
-  if (!current) {
-    return "none";
-  }
+      if (id.includes("message") || title === "message") {
+        return "minmax(420px,1fr)";
+      }
 
-  const hasAbove = index > 0;
-  const hasBelow = index < rows.length - 1;
-  if (!hasAbove && !hasBelow) {
-    return "none";
-  }
+      if (id.includes("trace") || id.includes("span")) {
+        return "320px";
+      }
 
-  const currentSequence = extractSequence(current.message);
-  const aboveSequence = hasAbove ? extractSequence(rows[index - 1]?.message ?? "") : null;
-  const belowSequence = hasBelow ? extractSequence(rows[index + 1]?.message ?? "") : null;
+      if (id.includes("service") || title === "service") {
+        return "220px";
+      }
 
-  if (
-    hasAbove &&
-    (currentSequence === null || aboveSequence === null || aboveSequence !== currentSequence - 1)
-  ) {
-    return "fail";
-  }
-
-  if (
-    hasBelow &&
-    (currentSequence === null || belowSequence === null || belowSequence !== currentSequence + 1)
-  ) {
-    return "fail";
-  }
-
-  return hasAbove && hasBelow ? "pass_full" : "pass_partial";
-}
-
-function getSequenceRowClasses(status: SequenceCheckStatus): string {
-  if (status === "pass_full") {
-    return "bg-emerald-500/15 hover:bg-emerald-500/20";
-  }
-
-  if (status === "pass_partial") {
-    return "bg-sky-500/15 hover:bg-sky-500/20";
-  }
-
-  if (status === "fail") {
-    return "bg-rose-500/15 hover:bg-rose-500/20";
-  }
-
-  return "hover:bg-muted/40";
+      return "minmax(180px,1fr)";
+    })
+    .join(" ");
 }
 
 export function LogsTable(props: {
   rows: LogRow[];
   pageInfo: LogsPageInfo | null;
+  activeProfile: LogProfile;
   selectedRowKey?: string;
   loadingOlder: boolean;
   loadingNewer: boolean;
@@ -100,19 +79,45 @@ export function LogsTable(props: {
   onSelectRow?: (row: LogRow) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const isAtBottomRef = React.useRef(true);
-  // Programmatic scroll-to-bottom during initial render can fire onScroll and
-  // immediately trigger paging. This guard ignores those synthetic events briefly.
-  const suppressPagingUntilRef = React.useRef(0);
-  const [pagingNotice, setPagingNotice] = React.useState<string | null>(null);
-  const previousLoadingStateRef = React.useRef({
-    older: false,
-    newer: false,
+  const tableColumns = React.useMemo(
+    () => toTableColumns(props.activeProfile).filter((column) => !column.hidden),
+    [props.activeProfile],
+  );
+  const gridTemplateColumns = React.useMemo(
+    () => getGridTemplateColumns(tableColumns),
+    [tableColumns],
+  );
+  const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
+    return tableColumns.map((column) => ({
+      id: column.id,
+      header: column.title,
+      cell: (context) => {
+        const row = context.row.original;
+        if (column.field || column.fields) {
+          return resolveFieldDisplayText(row.raw, {
+            field: column.field,
+            fields: column.fields,
+          });
+        }
+
+        return null;
+      },
+    }));
+  }, [tableColumns]);
+  const fakeSequenceMode = React.useMemo(
+    () => isFakeSequenceMode(props.rows, props.activeProfile),
+    [props.activeProfile, props.rows],
+  );
+  const { containerRef, handleScroll, pagingNotice } = useLogsTablePaging({
+    rowsLength: props.rows.length,
+    hasOlder: pageInfo.hasOlder,
+    hasNewer: pageInfo.hasNewer,
+    loadingOlder: props.loadingOlder,
+    loadingNewer: props.loadingNewer,
+    fakeSequenceMode,
+    onLoadOlder: props.onLoadOlder,
+    onLoadNewer: props.onLoadNewer,
   });
-  const olderLoadStartRowsRef = React.useRef<number | null>(null);
-  const newerLoadStartRowsRef = React.useRef<number | null>(null);
-  const fakeSequenceMode = React.useMemo(() => isFakeSequenceMode(props.rows), [props.rows]);
   const table = useReactTable({
     data: props.rows,
     columns,
@@ -127,133 +132,6 @@ export function LogsTable(props: {
     estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 12,
   });
-
-  const loadOlderWithAnchor = React.useCallback(async () => {
-    if (!pageInfo.hasOlder || props.loadingOlder) {
-      return;
-    }
-
-    const scrollElement = containerRef.current;
-    if (!scrollElement) {
-      return;
-    }
-
-    const previousHeight = scrollElement.scrollHeight;
-    const previousTop = scrollElement.scrollTop;
-    await props.onLoadOlder();
-
-    requestAnimationFrame(() => {
-      const currentElement = containerRef.current;
-      if (!currentElement) {
-        return;
-      }
-
-      const heightDelta = currentElement.scrollHeight - previousHeight;
-      currentElement.scrollTop = previousTop + heightDelta;
-    });
-  }, [pageInfo.hasOlder, props]);
-
-  const loadNewer = React.useCallback(async () => {
-    if (!pageInfo.hasNewer || props.loadingNewer) {
-      return;
-    }
-
-    await props.onLoadNewer();
-  }, [pageInfo.hasNewer, props]);
-
-  const onScroll = React.useCallback(async () => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    if (Date.now() < suppressPagingUntilRef.current) {
-      return;
-    }
-
-    const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
-    isAtBottomRef.current = distanceToBottom < 24;
-
-    if (element.scrollTop < SCROLL_THRESHOLD_PX) {
-      await loadOlderWithAnchor();
-    }
-
-    if (distanceToBottom < SCROLL_THRESHOLD_PX) {
-      await loadNewer();
-    }
-  }, [loadNewer, loadOlderWithAnchor]);
-
-  React.useEffect(() => {
-    const element = containerRef.current;
-    if (!element || !isAtBottomRef.current) {
-      return;
-    }
-
-    suppressPagingUntilRef.current = Date.now() + 400;
-    element.scrollTop = element.scrollHeight;
-  }, [props.rows.length]);
-
-  React.useEffect(() => {
-    if (!fakeSequenceMode) {
-      setPagingNotice(null);
-      previousLoadingStateRef.current = {
-        older: props.loadingOlder,
-        newer: props.loadingNewer,
-      };
-      return;
-    }
-
-    const previous = previousLoadingStateRef.current;
-
-    if (!previous.older && props.loadingOlder) {
-      olderLoadStartRowsRef.current = props.rows.length;
-    }
-
-    if (!previous.newer && props.loadingNewer) {
-      newerLoadStartRowsRef.current = props.rows.length;
-    }
-
-    if (previous.older && !props.loadingOlder) {
-      const startRows = olderLoadStartRowsRef.current;
-      if (startRows !== null) {
-        const loadedRows = props.rows.length - startRows;
-        if (loadedRows > 0) {
-          setPagingNotice(`Loaded ${loadedRows} older rows`);
-        }
-      }
-      olderLoadStartRowsRef.current = null;
-    }
-
-    if (previous.newer && !props.loadingNewer) {
-      const startRows = newerLoadStartRowsRef.current;
-      if (startRows !== null) {
-        const loadedRows = props.rows.length - startRows;
-        if (loadedRows > 0) {
-          setPagingNotice(`Loaded ${loadedRows} newer rows`);
-        }
-      }
-      newerLoadStartRowsRef.current = null;
-    }
-
-    previousLoadingStateRef.current = {
-      older: props.loadingOlder,
-      newer: props.loadingNewer,
-    };
-  }, [fakeSequenceMode, props.loadingNewer, props.loadingOlder, props.rows.length]);
-
-  React.useEffect(() => {
-    if (!pagingNotice) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setPagingNotice(null);
-    }, 1500);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [pagingNotice]);
 
   if (props.isLoadingInitial) {
     return (
@@ -270,67 +148,27 @@ export function LogsTable(props: {
           {props.errorMessage}
         </div>
       ) : null}
-      <div className="grid shrink-0 grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-muted/30">
-        {table.getHeaderGroups().map((headerGroup) =>
-          headerGroup.headers.map((header) => (
-            <div key={header.id} className="truncate px-1">
-              {flexRender(header.column.columnDef.header, header.getContext())}
-            </div>
-          )),
-        )}
-      </div>
-      <div ref={containerRef} onScroll={() => void onScroll()} className="flex-1 overflow-auto">
-        <div
-          className="relative min-w-[1500px]"
-          style={{
-            height: virtualizer.getTotalSize(),
-          }}
-        >
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const row = rowModel.rows[virtualRow.index];
-            const sequenceStatus = fakeSequenceMode
-              ? getSequenceCheckStatus(props.rows, virtualRow.index)
-              : "none";
-            return (
-              <div
-                key={row.id}
-                onClick={() => props.onSelectRow?.(row.original)}
-                className={`absolute left-0 grid w-full grid-cols-[210px_90px_220px_minmax(420px,1fr)_320px_320px] border-b border-border/60 px-3 text-xs ${getSequenceRowClasses(
-                  sequenceStatus,
-                )} ${props.selectedRowKey === row.id ? "ring-1 ring-inset ring-primary/60" : ""} ${
-                  props.onSelectRow ? "cursor-pointer" : ""
-                }`}
-                style={{
-                  top: 0,
-                  transform: `translateY(${virtualRow.start}px)`,
-                  height: `${virtualRow.size}px`,
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <div key={cell.id} className="self-center truncate px-1 text-foreground/90">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center justify-between border-t border-border px-3 py-2 text-xs text-muted-foreground">
-        <span>
-          Rows: {props.rows.length}
-          {props.isRefreshing ? " • refreshing..." : ""}
-        </span>
-        <span>
-          {pageInfo.hasOlder ? "older available" : "oldest loaded"} •{" "}
-          {pageInfo.hasNewer ? "newer available" : "newest loaded"}
-        </span>
-      </div>
-      {fakeSequenceMode && pagingNotice ? (
-        <div className="pointer-events-none absolute bottom-14 right-4 rounded-lg border border-sky-300 bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-lg">
-          {pagingNotice}
-        </div>
-      ) : null}
+      <LogsTableHeader table={table} gridTemplateColumns={gridTemplateColumns} />
+      <LogsTableBody
+        containerRef={containerRef}
+        onScroll={handleScroll}
+        virtualizer={virtualizer}
+        rowModel={rowModel}
+        rows={props.rows}
+        activeProfile={props.activeProfile}
+        fakeSequenceMode={fakeSequenceMode}
+        selectedRowKey={props.selectedRowKey}
+        onSelectRow={props.onSelectRow}
+        gridTemplateColumns={gridTemplateColumns}
+        minWidth={TABLE_MIN_WIDTH_PX}
+      />
+      <LogsTableFooter
+        rowCount={props.rows.length}
+        isRefreshing={props.isRefreshing}
+        hasOlder={pageInfo.hasOlder}
+        hasNewer={pageInfo.hasNewer}
+      />
+      {fakeSequenceMode && pagingNotice ? <LogsTablePagingNotice message={pagingNotice} /> : null}
     </div>
   );
 }

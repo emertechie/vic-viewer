@@ -12,3 +12,10 @@ export {
   type LogsQueryRequest,
   type LogsQueryResponse,
 } from "../../../../shared/schemas/logs";
+
+export {
+  logProfileSchema,
+  profileFieldSelectorSchema,
+  type LogProfile,
+  type ProfileFieldSelector,
+} from "../../../../shared/schemas/logProfiles";

@@ -1,4 +1,10 @@
-import { logsQueryResponseSchema, type LogsQueryRequest, type LogsQueryResponse } from "./types";
+import {
+  logProfileSchema,
+  logsQueryResponseSchema,
+  type LogProfile,
+  type LogsQueryRequest,
+  type LogsQueryResponse,
+} from "./types";
 import { errorResponseSchema } from "../../../../shared/schemas/errors";
 
 export async function fetchLogsQuery(request: LogsQueryRequest): Promise<LogsQueryResponse> {
@@ -25,4 +31,13 @@ export async function fetchLogsQuery(request: LogsQueryRequest): Promise<LogsQue
   }
 
   return logsQueryResponseSchema.parse(await response.json());
+}
+
+export async function fetchActiveLogProfile(): Promise<LogProfile> {
+  const response = await fetch("/api/logs/profile");
+  if (!response.ok) {
+    throw new Error("Failed to load active log profile");
+  }
+
+  return logProfileSchema.parse(await response.json());
 }

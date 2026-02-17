@@ -1,6 +1,7 @@
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { initializeDatabase } from "./db/init";
+import { loadLogProfile } from "./logProfiles/loadLogProfile";
 import { getVicStackConfig } from "./vicstack/config";
 import { createFakeVictoriaLogsClient } from "./vicstack/fakeVictoriaLogsClient";
 import { createVictoriaLogsClient } from "./vicstack/victoriaLogsClient";
@@ -10,6 +11,10 @@ async function startServer() {
   let isDatabaseReady = false;
   const { database, logsViewSettingsStore } = initializeDatabase(config.databasePath);
   isDatabaseReady = true;
+  const activeLogProfile = loadLogProfile({
+    profilePath: config.logsProfilePath,
+    expectedProfileId: config.logsProfileId,
+  });
   const victoriaLogsClient =
     config.logsDataMode === "fake"
       ? createFakeVictoriaLogsClient({
@@ -23,6 +28,7 @@ async function startServer() {
       isDatabaseReady: () => isDatabaseReady,
       logsViewSettingsStore,
       victoriaLogsClient,
+      getActiveLogProfile: () => activeLogProfile,
       logsCursorTransportMode: config.logsCursorDebugRaw ? "json" : "encoded",
     },
   });

@@ -16,9 +16,7 @@ function toSettings(row: typeof logsViewSettingsTable.$inferSelect): LogsViewSet
     defaultLiveEnabled: row.defaultLiveEnabled,
     rowDensity: row.rowDensity,
     wrapLines: row.wrapLines,
-    visibleColumns: row.visibleColumns,
     defaultRelativeRange: row.defaultRelativeRange,
-    otelPresetEnabled: row.otelPresetEnabled,
   });
 }
 
@@ -58,9 +56,7 @@ export function createLogsViewSettingsStore(database: AppDatabase): LogsViewSett
         defaultLiveEnabled: nextSettings.defaultLiveEnabled,
         rowDensity: nextSettings.rowDensity,
         wrapLines: nextSettings.wrapLines,
-        visibleColumns: nextSettings.visibleColumns,
         defaultRelativeRange: nextSettings.defaultRelativeRange,
-        otelPresetEnabled: nextSettings.otelPresetEnabled,
         createdAt: now,
         updatedAt: now,
       })
@@ -70,9 +66,7 @@ export function createLogsViewSettingsStore(database: AppDatabase): LogsViewSett
           defaultLiveEnabled: nextSettings.defaultLiveEnabled,
           rowDensity: nextSettings.rowDensity,
           wrapLines: nextSettings.wrapLines,
-          visibleColumns: nextSettings.visibleColumns,
           defaultRelativeRange: nextSettings.defaultRelativeRange,
-          otelPresetEnabled: nextSettings.otelPresetEnabled,
           updatedAt: now,
         },
       })
