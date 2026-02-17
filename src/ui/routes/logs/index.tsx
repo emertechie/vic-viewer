@@ -119,7 +119,6 @@ function LogsPage() {
         search={search}
         onApplySearch={onApplySearch}
         onToggleLive={onToggleLive}
-        activeProfileName={activeProfile.data?.name}
       />
       <div className="flex-1 overflow-hidden">
         {isProfileLoading ? (

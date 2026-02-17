@@ -34,7 +34,6 @@ export function LogsQueryControls(props: {
   search: LogsSearch;
   onApplySearch: (nextSearch: LogsSearch) => void;
   onToggleLive: (liveMode: "0" | "1") => void;
-  activeProfileName?: string;
 }) {
   const [queryText, setQueryText] = React.useState(props.search.q);
   const [range, setRange] = React.useState<LogsRange>(props.search.range);
@@ -232,11 +231,6 @@ export function LogsQueryControls(props: {
       ) : (
         runQueryButton
       )}
-      {props.activeProfileName ? (
-        <span className="ml-auto rounded border border-border/60 bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
-          Profile: {props.activeProfileName}
-        </span>
-      ) : null}
     </form>
   );
 }
