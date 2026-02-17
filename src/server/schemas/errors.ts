@@ -1,1 +1,1 @@
-export { errorResponseSchema, type ErrorResponse } from "../../shared/schemas/errors";
+export { errorResponseSchema, type ErrorResponse } from "@/shared/schemas/errors";

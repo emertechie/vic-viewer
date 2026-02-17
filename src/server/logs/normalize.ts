@@ -5,8 +5,8 @@ import {
   resolveFieldTextFromSelector,
   toNonEmptyText,
   type LogRecord as RawLogRecord,
-} from "../../shared/logs/field-resolution";
-import { extractLogSequence } from "../../shared/logs/sequence";
+} from "@/shared/logs/field-resolution";
+import { extractLogSequence } from "@/shared/logs/sequence";
 
 type LogRowKeyParts = {
   streamId: string | null;

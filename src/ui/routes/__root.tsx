@@ -1,8 +1,8 @@
 import * as React from "react";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { ThemeToggleButton } from "@/components/theme-toggle-button";
-import { createDefaultLogsSearch } from "@/features/logs/state/search";
-import { useThemeMode } from "@/hooks/use-theme-mode";
+import { ThemeToggleButton } from "@/ui/components/theme-toggle-button";
+import { createDefaultLogsSearch } from "@/ui/features/logs/state/search";
+import { useThemeMode } from "@/ui/hooks/use-theme-mode";
 
 export const Route = createRootRoute({
   component: RootLayout,

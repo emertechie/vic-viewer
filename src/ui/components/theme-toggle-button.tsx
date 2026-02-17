@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Moon, Sun } from "lucide-react";
-import type { ThemeMode } from "@/hooks/use-theme-mode";
+import type { ThemeMode } from "@/ui/hooks/use-theme-mode";
 
 export function ThemeToggleButton(props: { theme: ThemeMode; onToggle: () => void }) {
   return (

@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { createDefaultLogsSearch } from "@/features/logs/state/search";
+import { createDefaultLogsSearch } from "@/ui/features/logs/state/search";
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {

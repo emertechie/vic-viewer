@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CopyButton } from "@/components/copy-button";
+import { CopyButton } from "@/ui/components/copy-button";
 import type { DrawerFieldRow, DrawerFieldSet } from "./log-details-field-sets";
 
 type CopyHandler = (value: string) => Promise<void> | void;

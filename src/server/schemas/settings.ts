@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { relativeRangeSchema } from "../../shared/schemas/settings";
+import { relativeRangeSchema } from "@/shared/schemas/settings";
 
 export const rowDensitySchema = z.enum(["comfortable", "compact"]);
 export { relativeRangeSchema };

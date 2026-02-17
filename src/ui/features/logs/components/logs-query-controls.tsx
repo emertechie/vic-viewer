@@ -1,6 +1,11 @@
 import * as React from "react";
 import { Play, X } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/ui/components/ui/tooltip";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
 import { buildRelativeWindow } from "../state/search";
 

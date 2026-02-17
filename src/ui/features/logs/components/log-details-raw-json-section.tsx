@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@/ui/components/ui/switch";
 
 export function LogDetailsRawJsonSection(props: {
   raw: Record<string, unknown>;

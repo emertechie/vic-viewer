@@ -13,7 +13,7 @@
     "skipLibCheck": true,
     // "noUnusedLocals": true,
     "paths": {
-      "@/*": ["./src/ui/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

@@ -11,4 +11,4 @@ export {
   type LogsPageInfo,
   type LogsQueryRequest,
   type LogsQueryResponse,
-} from "../../shared/schemas/logs";
+} from "@/shared/schemas/logs";

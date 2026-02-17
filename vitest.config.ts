@@ -10,6 +10,11 @@ export default defineConfig({
           environment: "node",
           include: ["tests/api/**/*.test.ts"],
         },
+        resolve: {
+          alias: {
+            "@": path.resolve(__dirname, "src"),
+          },
+        },
       },
       {
         test: {
@@ -19,7 +24,7 @@ export default defineConfig({
         },
         resolve: {
           alias: {
-            "@": path.resolve(__dirname, "src/ui"),
+            "@": path.resolve(__dirname, "src"),
           },
         },
       },

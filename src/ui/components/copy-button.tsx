@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Copy } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/components/ui/tooltip";
 
 const COPIED_TOOLTIP_DURATION_MS = 500;
 

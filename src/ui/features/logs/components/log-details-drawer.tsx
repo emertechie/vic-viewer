@@ -1,6 +1,6 @@
 import * as React from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { TooltipProvider } from "@/ui/components/ui/tooltip";
+import { useClipboard } from "@/ui/hooks/use-clipboard";
 import type { LogProfile, LogRow } from "../api/types";
 import { resolveCoreFieldDisplayText } from "../state/profile-fields";
 import { LogDetailsFieldSetSection } from "./log-details-field-set-section";

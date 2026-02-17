@@ -1,16 +1,16 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { LogRow } from "@/features/logs/api/types";
-import { LogDetailsDrawer } from "@/features/logs/components/log-details-drawer";
-import { LogsQueryControls } from "@/features/logs/components/logs-query-controls";
-import { LogsTable } from "@/features/logs/components/logs-table";
-import { useActiveLogProfile } from "@/features/logs/hooks/use-active-log-profile";
-import { useLogsViewer } from "@/features/logs/hooks/use-logs-viewer";
+import type { LogRow } from "@/ui/features/logs/api/types";
+import { LogDetailsDrawer } from "@/ui/features/logs/components/log-details-drawer";
+import { LogsQueryControls } from "@/ui/features/logs/components/logs-query-controls";
+import { LogsTable } from "@/ui/features/logs/components/logs-table";
+import { useActiveLogProfile } from "@/ui/features/logs/hooks/use-active-log-profile";
+import { useLogsViewer } from "@/ui/features/logs/hooks/use-logs-viewer";
 import {
   parseLogsSearch,
   refreshRelativeWindow,
   type LogsSearch,
-} from "@/features/logs/state/search";
+} from "@/ui/features/logs/state/search";
 
 export const Route = createFileRoute("/logs/")({
   validateSearch: (search) => parseLogsSearch(search),
