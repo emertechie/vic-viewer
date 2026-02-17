@@ -18,15 +18,6 @@ type LogsTableColumn = {
   fields?: string[];
 };
 
-const fallbackColumns: LogsTableColumn[] = [
-  { id: "time", title: "Time", field: "_time" },
-  { id: "severity", title: "Level", fields: ["severity", "SeverityText"] },
-  { id: "service-name", title: "Service", field: "service.name" },
-  { id: "message", title: "Message", field: "_msg" },
-  { id: "trace-id", title: "TraceId", fields: ["trace_id", "TraceId"] },
-  { id: "span-id", title: "SpanId", fields: ["span_id", "SpanId"] },
-];
-
 const ROW_ESTIMATE_PX = 34;
 const SCROLL_THRESHOLD_PX = 180;
 
@@ -42,19 +33,17 @@ function extractSequence(message: string): number | null {
   return Number.isNaN(sequence) ? null : sequence;
 }
 
-function resolveMessageForRow(row: LogRow, activeProfile: LogProfile | null): string {
+function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
   return (
     resolveCoreFieldDisplayText({
       record: row.raw,
       profile: activeProfile,
       coreField: "message",
-    }) ??
-    resolveFieldDisplayText(row.raw, { field: "_msg" }) ??
-    ""
+    }) ?? ""
   );
 }
 
-function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile | null): boolean {
+function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile): boolean {
   const sample = rows.slice(0, 20);
   if (sample.length === 0) {
     return false;
@@ -66,7 +55,7 @@ function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile | null): b
 function getSequenceCheckStatus(
   rows: LogRow[],
   index: number,
-  activeProfile: LogProfile | null,
+  activeProfile: LogProfile,
 ): SequenceCheckStatus {
   const current = rows[index];
   if (!current) {
@@ -120,11 +109,7 @@ function getSequenceRowClasses(status: SequenceCheckStatus): string {
   return "hover:bg-muted/40";
 }
 
-function toTableColumns(activeProfile: LogProfile | null): LogsTableColumn[] {
-  if (!activeProfile) {
-    return fallbackColumns;
-  }
-
+function toTableColumns(activeProfile: LogProfile): LogsTableColumn[] {
   return activeProfile.logTable.columns.map((column) => ({
     id: getProfileFieldIdentifier(column),
     title: getProfileFieldLabel(column),
@@ -167,7 +152,7 @@ function getGridTemplateColumns(columns: LogsTableColumn[]): string {
 export function LogsTable(props: {
   rows: LogRow[];
   pageInfo: LogsPageInfo | null;
-  activeProfile?: LogProfile | null;
+  activeProfile: LogProfile;
   selectedRowKey?: string;
   loadingOlder: boolean;
   loadingNewer: boolean;
@@ -192,7 +177,7 @@ export function LogsTable(props: {
   const olderLoadStartRowsRef = React.useRef<number | null>(null);
   const newerLoadStartRowsRef = React.useRef<number | null>(null);
   const tableColumns = React.useMemo(
-    () => toTableColumns(props.activeProfile ?? null).filter((column) => !column.hidden),
+    () => toTableColumns(props.activeProfile).filter((column) => !column.hidden),
     [props.activeProfile],
   );
   const gridTemplateColumns = React.useMemo(
@@ -217,7 +202,7 @@ export function LogsTable(props: {
     }));
   }, [tableColumns]);
   const fakeSequenceMode = React.useMemo(
-    () => isFakeSequenceMode(props.rows, props.activeProfile ?? null),
+    () => isFakeSequenceMode(props.rows, props.activeProfile),
     [props.activeProfile, props.rows],
   );
   const table = useReactTable({
@@ -399,7 +384,7 @@ export function LogsTable(props: {
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rowModel.rows[virtualRow.index];
             const sequenceStatus = fakeSequenceMode
-              ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile ?? null)
+              ? getSequenceCheckStatus(props.rows, virtualRow.index, props.activeProfile)
               : "none";
             const rowClassName = `absolute left-0 grid w-full border-b border-border/60 px-3 text-xs ${getSequenceRowClasses(
               sequenceStatus,

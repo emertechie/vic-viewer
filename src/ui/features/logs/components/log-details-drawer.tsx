@@ -32,41 +32,6 @@ function parseOriginalFormatTokens(originalFormat: string): string[] {
   return [...tokenSet].sort((left, right) => left.localeCompare(right));
 }
 
-function buildDefaultFieldSets(row: LogRow): DrawerFieldSet[] {
-  const resolve = (field: string) => toDisplayText(row.raw[field]);
-
-  return [
-    {
-      id: "core",
-      name: "Core",
-      rows: [
-        { id: "time", label: "Time", value: row.time },
-        { id: "severity", label: "Severity", value: resolve("severity") },
-        { id: "service", label: "Service", value: resolve("service.name") },
-        { id: "message", label: "Message", value: resolve("_msg") },
-        { id: "stream-id", label: "StreamId", value: resolve("_stream_id") },
-      ],
-    },
-    {
-      id: "trace-span",
-      name: "Trace / Span",
-      rows: [
-        {
-          id: "trace-id",
-          label: "TraceId",
-          value: resolve("trace_id") ?? resolve("TraceId"),
-        },
-        { id: "span-id", label: "SpanId", value: resolve("span_id") ?? resolve("SpanId") },
-        {
-          id: "request-id",
-          label: "RequestId",
-          value: typeof row.raw.RequestId === "string" ? row.raw.RequestId : null,
-        },
-      ],
-    },
-  ];
-}
-
 function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerFieldSet[] {
   const renderedKeys = new Set<string>();
   const sets: DrawerFieldSet[] = [];
@@ -154,14 +119,6 @@ function buildProfileFieldSets(row: LogRow, profile: LogProfile): DrawerFieldSet
   return sets;
 }
 
-function buildFieldSets(row: LogRow, activeProfile: LogProfile | null): DrawerFieldSet[] {
-  if (!activeProfile) {
-    return buildDefaultFieldSets(row);
-  }
-
-  return buildProfileFieldSets(row, activeProfile);
-}
-
 function DetailRow(props: { label: string; value: string | null; onCopy?: CopyHandler }) {
   const displayValue = props.value ?? "—";
   const canCopy = Boolean(props.value);
@@ -189,7 +146,7 @@ function DetailRow(props: { label: string; value: string | null; onCopy?: CopyHa
 
 export function LogDetailsDrawer(props: {
   row: LogRow | null;
-  activeProfile?: LogProfile | null;
+  activeProfile: LogProfile;
   selectedKey?: string;
   onClose: () => void;
   onOpenTrace: (traceId: string) => void;
@@ -206,12 +163,9 @@ export function LogDetailsDrawer(props: {
     return (
       resolveCoreFieldDisplayText({
         record: props.row.raw,
-        profile: props.activeProfile ?? null,
+        profile: props.activeProfile,
         coreField: "traceId",
-      }) ??
-      toDisplayText(props.row.raw.trace_id) ??
-      toDisplayText(props.row.raw.TraceId) ??
-      null
+      }) ?? null
     );
   }, [props.activeProfile, props.row]);
   const fieldSets = React.useMemo(() => {
@@ -219,7 +173,7 @@ export function LogDetailsDrawer(props: {
       return [];
     }
 
-    return buildFieldSets(props.row, props.activeProfile ?? null);
+    return buildProfileFieldSets(props.row, props.activeProfile);
   }, [props.activeProfile, props.row]);
 
   return (

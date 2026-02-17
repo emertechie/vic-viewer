@@ -145,10 +145,10 @@ export function getProfileFieldIdentifier(field: ProfileRenderableField): string
 
 export function resolveCoreFieldDisplayText(options: {
   record: RawLogRecord;
-  profile: LogProfile | null;
+  profile: LogProfile;
   coreField: keyof LogProfile["coreFields"];
 }): string | null {
-  const selector = options.profile?.coreFields[options.coreField];
+  const selector = options.profile.coreFields[options.coreField];
   if (!selector) {
     return null;
   }
