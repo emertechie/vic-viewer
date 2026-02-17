@@ -75,17 +75,15 @@ export function LogsQueryControls(props: {
     setAbsoluteEnd(toLocalDateTimeValue(props.search.end));
   }, [props.search.end, props.search.q, props.search.range, props.search.start]);
 
-  const applySearch = React.useCallback(
-    (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-
-      const trimmedQuery = queryText.trim();
-      const nextQuery = normalizeQuery(queryText);
-      if (!trimmedQuery && queryText !== WILDCARD_QUERY) {
+  const doApplySearch = React.useCallback(
+    (nextRange: LogsRange, nextQueryText: string) => {
+      const trimmedQuery = nextQueryText.trim();
+      const nextQuery = normalizeQuery(nextQueryText);
+      if (!trimmedQuery && nextQueryText !== WILDCARD_QUERY) {
         setQueryText(WILDCARD_QUERY);
       }
 
-      if (range === "absolute") {
+      if (nextRange === "absolute") {
         if (!absoluteStart || !absoluteEnd) {
           return;
         }
@@ -100,21 +98,30 @@ export function LogsQueryControls(props: {
         return;
       }
 
-      const window = buildRelativeWindow(range as RelativeRange, new Date());
+      const window = buildRelativeWindow(nextRange as RelativeRange, new Date());
       props.onApplySearch({
         ...props.search,
         q: nextQuery,
-        range,
+        range: nextRange,
         start: window.start,
         end: window.end,
       });
     },
-    [absoluteEnd, absoluteStart, props, queryText, range],
+    [absoluteEnd, absoluteStart, props],
+  );
+
+  const applySearch = React.useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      doApplySearch(range, queryText);
+    },
+    [doApplySearch, range, queryText],
   );
 
   const clearQueryToWildcard = React.useCallback(() => {
     setQueryText(WILDCARD_QUERY);
-  }, []);
+    doApplySearch(range, WILDCARD_QUERY);
+  }, [doApplySearch, range]);
 
   const runQueryButton = (
     <button
@@ -166,7 +173,13 @@ export function LogsQueryControls(props: {
         <select
           id="logs-range"
           value={range}
-          onChange={(event) => setRange(event.currentTarget.value as LogsRange)}
+          onChange={(event) => {
+            const nextRange = event.currentTarget.value as LogsRange;
+            setRange(nextRange);
+            if (nextRange !== "absolute") {
+              doApplySearch(nextRange, queryText);
+            }
+          }}
           className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
         >
           <option value="5m">Last 5m</option>
