@@ -3,11 +3,11 @@ import * as React from "react";
 const THEME_STORAGE_KEY = "vic-viewer-theme";
 
 export type ThemeMode = "light" | "dark";
-export type ShikiThemeId = "solarized-light" | "solarized-dark";
+export type ShikiThemeId = "github-light" | "github-dark";
 
 export const SHIKI_THEME_IDS: Record<ThemeMode, ShikiThemeId> = {
-  light: "solarized-light",
-  dark: "solarized-dark",
+  light: "github-light",
+  dark: "github-dark",
 };
 
 type ThemeModeContextValue = {
