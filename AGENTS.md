@@ -3,7 +3,7 @@ This project is for a modern, fast React app to view logs, traces (and eventuall
 For more context, make sure you read:
 
 - [PROJECT_OVERVIEW](./PROJECT_OVERVIEW.md)
-- Original [PLAN doc](./LTM_LOG_VIEWER_PLAN.md)
+- Original [PLAN doc](./docs/plans/LTM_LOG_VIEWER_PLAN.md). NOTE: parts may be out of date.
 
 # General
 
