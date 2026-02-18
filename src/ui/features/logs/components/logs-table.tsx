@@ -20,13 +20,6 @@ const ROW_ESTIMATE_PX = 34;
 /** Horizontal padding (px-3 = 12px each side) applied to header and row containers. */
 const TABLE_HORIZONTAL_PADDING_PX = 24;
 
-const DEFAULT_COLUMN_WIDTH = 180;
-const TIME_COLUMN_WIDTH = 210;
-const LEVEL_COLUMN_WIDTH = 90;
-const MESSAGE_COLUMN_WIDTH = 420;
-const TRACE_COLUMN_WIDTH = 320;
-const SERVICE_COLUMN_WIDTH = 220;
-
 function useContainerWidth(containerElement: HTMLElement | null): number {
   const [containerWidth, setContainerWidth] = React.useState(0);
 
@@ -50,26 +43,38 @@ function useContainerWidth(containerElement: HTMLElement | null): number {
   return containerWidth;
 }
 
+/**
+ * Persists column width changes only when a resize interaction finishes.
+ * This avoids saving on every drag-frame while still capturing the final size.
+ */
 function usePersistColumnResize(options: {
   isResizing: boolean;
   resizingColumnId: string | false;
   columnSizing: ColumnSizingState;
   onColumnResize?: (columnId: string, width: number) => void;
 }): void {
+  // Keep callback and current sizing in refs so this effect can fire on the
+  // resize edge transition without re-running for every sizing map update.
   const onColumnResizeRef = React.useRef(options.onColumnResize);
   onColumnResizeRef.current = options.onColumnResize;
 
   const columnSizingRef = React.useRef(options.columnSizing);
   columnSizingRef.current = options.columnSizing;
 
+  // We only persist when resizing transitions from true -> false.
   const prevIsResizingRef = React.useRef(false);
+  // Track which column was actively being resized so we persist only that one
+  // instead of iterating every key in the sizing state.
   const prevResizingColumnIdRef = React.useRef<string | false>(false);
+
   React.useEffect(() => {
+    // TanStack updates size continuously during drag; save once when drag ends.
     if (prevIsResizingRef.current && !options.isResizing) {
       const resizedColumnId = prevResizingColumnIdRef.current;
       if (resizedColumnId !== false) {
         const width = columnSizingRef.current[resizedColumnId];
         if (typeof width === "number") {
+          // Persist a rounded pixel width to keep stored config stable.
           onColumnResizeRef.current?.(resizedColumnId, Math.round(width));
         }
       }
@@ -85,15 +90,15 @@ function getDefaultColumnSize(column: ColumnConfigEntry): number {
   const id = column.id.toLowerCase();
   const title = column.title.toLowerCase();
 
-  if (id.includes("time") || title === "time") return TIME_COLUMN_WIDTH;
+  if (id.includes("time") || title === "time") return 210;
   if (id.includes("level") || id.includes("severity") || title === "level") {
-    return LEVEL_COLUMN_WIDTH;
+    return 90;
   }
-  if (id.includes("message") || title === "message") return MESSAGE_COLUMN_WIDTH;
-  if (id.includes("trace") || id.includes("span")) return TRACE_COLUMN_WIDTH;
-  if (id.includes("service") || title === "service") return SERVICE_COLUMN_WIDTH;
+  if (id.includes("message") || title === "message") return 420;
+  if (id.includes("trace") || id.includes("span")) return 320;
+  if (id.includes("service") || title === "service") return 220;
 
-  return DEFAULT_COLUMN_WIDTH;
+  return 180;
 }
 
 /**
