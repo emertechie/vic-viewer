@@ -9,3 +9,4 @@
 - [x] make log details 700px wide in desktop mode, 500px otherwise
 - [x] if the "Range" dropdown control in `src/ui/features/logs/components/logs-query-controls.tsx` is changed: as long as the "absolute" value is not selected, then immediately trigger search. Also immediately trigger search if the "x" button in the "LogsQL" search bar is clicked
 - [x] When viewing detail of one log, can use up/down KB to navigate to prev/next log without needing to close tray. Add some KB icons to hint to the user about the functionality. Perhaps put up/down icons beside the "Close" button at the header of the Log Details slideout. With a tooltip that explains what will happen
+- [x] Make the columns in the log table draggable by following this TanStack guide: https://tanstack.com/table/v8/docs/framework/react/examples/column-dnd?panel=sandbox. Use the same drag handles as used for the columns in the "Configure Columns" dialog.
