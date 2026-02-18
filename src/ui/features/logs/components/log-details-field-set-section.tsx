@@ -15,11 +15,6 @@ type ToggleColumnHandler = (
   title?: string,
 ) => void;
 
-function shouldShowOpenTraceButton(fieldSetName: string): boolean {
-  const normalizedName = fieldSetName.toLowerCase();
-  return normalizedName.includes("trace") || normalizedName.includes("correlation");
-}
-
 function ToggleColumnButton(props: {
   row: DrawerFieldRow;
   isVisible: boolean;
@@ -89,33 +84,16 @@ function DetailRow(props: {
 
 export function LogDetailsFieldSetSection(props: {
   fieldSet: DrawerFieldSet;
-  traceId: string | null;
   visibleColumns: ColumnConfigEntry[];
-  onOpenTrace: (traceId: string) => void;
   onCopy: CopyHandler;
   onToggleColumn: ToggleColumnHandler;
 }) {
-  const canOpenTrace = shouldShowOpenTraceButton(props.fieldSet.name) && Boolean(props.traceId);
-
   return (
     <section>
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1">
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {props.fieldSet.name}
         </h3>
-        {canOpenTrace ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (props.traceId) {
-                props.onOpenTrace(props.traceId);
-              }
-            }}
-            className="rounded border border-primary/40 px-2 py-0.5 text-[10px] text-primary"
-          >
-            Open Trace
-          </button>
-        ) : null}
       </div>
       {props.fieldSet.rows.map((row) => (
         <DetailRow

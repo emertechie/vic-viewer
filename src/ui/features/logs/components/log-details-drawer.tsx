@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
 import { useEscapeKey } from "@/ui/hooks/use-escape-key";
 import type { ColumnConfigEntry, LogProfile, LogRow } from "../api/types";
-import { resolveCoreFieldDisplayText } from "../state/profile-fields";
+
 import { LogDetailsFieldSetSection } from "./log-details-field-set-section";
 import { buildProfileFieldSets } from "./log-details-field-sets";
 import { LogDetailsRawJsonSection } from "./log-details-raw-json-section";
@@ -48,7 +48,6 @@ export function LogDetailsDrawer(props: {
   onSelectPrevious: () => void;
   onSelectNext: () => void;
   onClose: () => void;
-  onOpenTrace: (traceId: string) => void;
   onToggleColumn: (fieldId: string, field?: string, fields?: string[], title?: string) => void;
 }) {
   const { copyToClipboard } = useClipboard();
@@ -58,19 +57,6 @@ export function LogDetailsDrawer(props: {
 
   useEscapeKey(isOpen, props.onClose);
 
-  const traceId = React.useMemo(() => {
-    if (!props.row) {
-      return null;
-    }
-
-    return (
-      resolveCoreFieldDisplayText({
-        record: props.row.raw,
-        profile: props.activeProfile,
-        coreField: "traceId",
-      }) ?? null
-    );
-  }, [props.activeProfile, props.row]);
   const fieldSets = React.useMemo(() => {
     if (!props.row) {
       return [];
@@ -131,9 +117,7 @@ export function LogDetailsDrawer(props: {
                 <LogDetailsFieldSetSection
                   key={fieldSet.id}
                   fieldSet={fieldSet}
-                  traceId={traceId}
                   visibleColumns={props.visibleColumns}
-                  onOpenTrace={props.onOpenTrace}
                   onCopy={copyToClipboard}
                   onToggleColumn={props.onToggleColumn}
                 />

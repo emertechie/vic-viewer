@@ -150,18 +150,6 @@ function LogsPage() {
     setSelectedRow(undefined);
   }, [setSelectedRow]);
 
-  const onOpenTrace = React.useCallback(
-    (traceId: string) => {
-      navigate({
-        to: "/traces",
-        search: () => ({
-          traceId,
-        }),
-      });
-    },
-    [navigate],
-  );
-
   const onColumnReorder = React.useCallback(
     (newOrder: string[]) => {
       const currentColumns = columnConfig.columns;
@@ -269,7 +257,6 @@ function LogsPage() {
           onSelectPrevious={onSelectPrevious}
           onSelectNext={onSelectNext}
           onClose={onCloseDrawer}
-          onOpenTrace={onOpenTrace}
           onToggleColumn={onToggleColumnVisibility}
         />
       ) : null}
