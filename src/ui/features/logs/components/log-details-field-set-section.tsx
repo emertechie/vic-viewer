@@ -3,7 +3,7 @@ import { Columns } from "lucide-react";
 import { CopyButton } from "@/ui/components/copy-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/components/ui/tooltip";
 import type { ColumnConfigEntry } from "../api/types";
-import { fieldSelectorsMatch } from "../state/profile-fields";
+import { fieldSelectorsMatch, hasFieldSelector } from "../state/profile-fields";
 import type { QuickFilterOperator, QuickFilterSelector } from "../state/quick-filters";
 import type { DrawerFieldRow, DrawerFieldSet } from "./log-details-field-sets";
 import { LogDetailsCodeBlock } from "./log-details-code-block";
@@ -20,10 +20,6 @@ type QuickFilterHandler = (
   selector: QuickFilterSelector,
   value: string,
 ) => void;
-
-function hasFieldSelector(row: DrawerFieldRow): boolean {
-  return Boolean(row.field) || Boolean(row.fields && row.fields.length > 0);
-}
 
 function ToggleColumnButton(props: {
   row: DrawerFieldRow;

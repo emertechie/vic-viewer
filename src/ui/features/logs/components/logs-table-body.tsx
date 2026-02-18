@@ -3,7 +3,11 @@ import { flexRender, type RowModel } from "@tanstack/react-table";
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { extractLogSequence } from "../../../../shared/logs/sequence";
 import type { LogProfile, LogRow } from "../api/types";
-import { resolveCoreFieldDisplayText, resolveFieldDisplayText } from "../state/profile-fields";
+import {
+  hasFieldSelector,
+  resolveCoreFieldDisplayText,
+  resolveFieldDisplayText,
+} from "../state/profile-fields";
 import type { QuickFilterOperator, QuickFilterSelector } from "../state/quick-filters";
 import { getColumnSizeVarName } from "./logs-table-sizing";
 
@@ -56,10 +60,6 @@ type ColumnQuickFilterMeta = {
   field?: string;
   fields?: string[];
 };
-
-function hasFieldSelector(field?: string, fields?: string[]): boolean {
-  return Boolean(field) || Boolean(fields && fields.length > 0);
-}
 
 function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
   return (
@@ -198,7 +198,7 @@ export function LogsTableBody(props: {
           const meta = cell.column.columnDef.meta as ColumnQuickFilterMeta | undefined;
           const field = meta?.field;
           const fields = meta?.fields;
-          const hasSelector = hasFieldSelector(field, fields);
+          const hasSelector = hasFieldSelector({ field, fields });
           const value = hasSelector
             ? resolveFieldDisplayText(row.original.raw, {
                 field,

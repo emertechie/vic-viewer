@@ -23,6 +23,116 @@ function fromLocalDateTimeValue(localDateTime: string): string {
   return new Date(localDateTime).toISOString();
 }
 
+function QueryInput(props: {
+  queryText: string;
+  onQueryTextChange: (value: string) => void;
+  onClearQuery: () => void;
+}) {
+  return (
+    <div className="min-w-[220px] flex-1">
+      <label htmlFor="logs-query" className="mb-1 block text-xs text-muted-foreground">
+        LogsQL
+      </label>
+      <div className="relative">
+        <input
+          id="logs-query"
+          value={props.queryText}
+          onChange={(event) => props.onQueryTextChange(event.currentTarget.value)}
+          placeholder={WILDCARD_QUERY}
+          className="h-9 w-full rounded-md border border-input bg-card pl-3 pr-9 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
+        />
+        <button
+          type="button"
+          onClick={props.onClearQuery}
+          aria-label='Clear query to "*"'
+          className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RangePicker(props: {
+  range: LogsRange;
+  absoluteStart: string;
+  absoluteEnd: string;
+  onRangeChange: (nextRange: LogsRange) => void;
+  onAbsoluteStartChange: (nextStart: string) => void;
+  onAbsoluteEndChange: (nextEnd: string) => void;
+}) {
+  return (
+    <>
+      <div className="w-28">
+        <label htmlFor="logs-range" className="mb-1 block text-xs text-muted-foreground">
+          Range
+        </label>
+        <select
+          id="logs-range"
+          value={props.range}
+          onChange={(event) => props.onRangeChange(event.currentTarget.value as LogsRange)}
+          className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
+        >
+          <option value="5m">Last 5m</option>
+          <option value="15m">Last 15m</option>
+          <option value="1h">Last 1h</option>
+          <option value="6h">Last 6h</option>
+          <option value="24h">Last 24h</option>
+          <option value="absolute">Absolute</option>
+        </select>
+      </div>
+      {props.range === "absolute" ? (
+        <>
+          <div>
+            <label
+              htmlFor="logs-absolute-start"
+              className="mb-1 block text-xs text-muted-foreground"
+            >
+              Start
+            </label>
+            <input
+              id="logs-absolute-start"
+              type="datetime-local"
+              value={props.absoluteStart}
+              onChange={(event) => props.onAbsoluteStartChange(event.currentTarget.value)}
+              className="h-9 rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
+            />
+          </div>
+          <div>
+            <label htmlFor="logs-absolute-end" className="mb-1 block text-xs text-muted-foreground">
+              End
+            </label>
+            <input
+              id="logs-absolute-end"
+              type="datetime-local"
+              value={props.absoluteEnd}
+              onChange={(event) => props.onAbsoluteEndChange(event.currentTarget.value)}
+              className="h-9 rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
+            />
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function LiveToggle(props: { liveMode: "0" | "1"; onToggleLive: (liveMode: "0" | "1") => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => props.onToggleLive(props.liveMode === "1" ? "0" : "1")}
+      className={`h-9 rounded-md border px-3 text-sm ${
+        props.liveMode === "1"
+          ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
+          : "border-input bg-card text-muted-foreground"
+      }`}
+    >
+      {props.liveMode === "1" ? "Live On" : "Live Off"}
+    </button>
+  );
+}
+
 export function LogsQueryControls(props: {
   search: LogsSearch;
   onApplySearch: (nextSearch: LogsSearch) => void;
@@ -115,6 +225,16 @@ export function LogsQueryControls(props: {
     doApplySearch(range, WILDCARD_QUERY);
   }, [doApplySearch, range]);
 
+  const handleRangeChange = React.useCallback(
+    (nextRange: LogsRange) => {
+      setRange(nextRange);
+      if (nextRange !== "absolute") {
+        doApplySearch(nextRange, queryText);
+      }
+    },
+    [doApplySearch, queryText],
+  );
+
   const runQueryButton = (
     <button
       type="submit"
@@ -136,94 +256,20 @@ export function LogsQueryControls(props: {
       onSubmit={applySearch}
       className="flex flex-wrap items-end gap-2 border-b border-border px-3 py-3"
     >
-      <div className="min-w-[220px] flex-1">
-        <label htmlFor="logs-query" className="mb-1 block text-xs text-muted-foreground">
-          LogsQL
-        </label>
-        <div className="relative">
-          <input
-            id="logs-query"
-            value={queryText}
-            onChange={(event) => setQueryText(event.currentTarget.value)}
-            placeholder={WILDCARD_QUERY}
-            className="h-9 w-full rounded-md border border-input bg-card pl-3 pr-9 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
-          />
-          <button
-            type="button"
-            onClick={clearQueryToWildcard}
-            aria-label='Clear query to "*"'
-            className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </div>
-      </div>
-      <div className="w-28">
-        <label htmlFor="logs-range" className="mb-1 block text-xs text-muted-foreground">
-          Range
-        </label>
-        <select
-          id="logs-range"
-          value={range}
-          onChange={(event) => {
-            const nextRange = event.currentTarget.value as LogsRange;
-            setRange(nextRange);
-            if (nextRange !== "absolute") {
-              doApplySearch(nextRange, queryText);
-            }
-          }}
-          className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
-        >
-          <option value="5m">Last 5m</option>
-          <option value="15m">Last 15m</option>
-          <option value="1h">Last 1h</option>
-          <option value="6h">Last 6h</option>
-          <option value="24h">Last 24h</option>
-          <option value="absolute">Absolute</option>
-        </select>
-      </div>
-      {range === "absolute" ? (
-        <>
-          <div>
-            <label
-              htmlFor="logs-absolute-start"
-              className="mb-1 block text-xs text-muted-foreground"
-            >
-              Start
-            </label>
-            <input
-              id="logs-absolute-start"
-              type="datetime-local"
-              value={absoluteStart}
-              onChange={(event) => setAbsoluteStart(event.currentTarget.value)}
-              className="h-9 rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
-            />
-          </div>
-          <div>
-            <label htmlFor="logs-absolute-end" className="mb-1 block text-xs text-muted-foreground">
-              End
-            </label>
-            <input
-              id="logs-absolute-end"
-              type="datetime-local"
-              value={absoluteEnd}
-              onChange={(event) => setAbsoluteEnd(event.currentTarget.value)}
-              className="h-9 rounded-md border border-input bg-card px-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring/60"
-            />
-          </div>
-        </>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => onToggleLive(search.live === "1" ? "0" : "1")}
-        className={`h-9 rounded-md border px-3 text-sm ${
-          search.live === "1"
-            ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
-            : "border-input bg-card text-muted-foreground"
-        }`}
-      >
-        {search.live === "1" ? "Live On" : "Live Off"}
-      </button>
+      <QueryInput
+        queryText={queryText}
+        onQueryTextChange={setQueryText}
+        onClearQuery={clearQueryToWildcard}
+      />
+      <RangePicker
+        range={range}
+        absoluteStart={absoluteStart}
+        absoluteEnd={absoluteEnd}
+        onRangeChange={handleRangeChange}
+        onAbsoluteStartChange={setAbsoluteStart}
+        onAbsoluteEndChange={setAbsoluteEnd}
+      />
+      <LiveToggle liveMode={search.live} onToggleLive={onToggleLive} />
       {hasUnappliedChanges ? (
         <TooltipProvider delayDuration={300}>
           <Tooltip>
