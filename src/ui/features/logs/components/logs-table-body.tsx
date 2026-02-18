@@ -4,6 +4,7 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { extractLogSequence } from "../../../../shared/logs/sequence";
 import type { LogProfile, LogRow } from "../api/types";
 import { resolveCoreFieldDisplayText } from "../state/profile-fields";
+import { getColumnSizeVarName } from "./logs-table-sizing";
 
 const FAKE_SEQUENCE_SAMPLE_SIZE = 20;
 
@@ -144,7 +145,7 @@ export function LogsTableBody(props: {
           <div
             key={cell.id}
             className="shrink-0 self-center truncate px-1 text-foreground/90"
-            style={{ width: `calc(var(--col-${cell.column.id}-size) * 1px)` }}
+            style={{ width: `calc(var(${getColumnSizeVarName(cell.column.id)}) * 1px)` }}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </div>

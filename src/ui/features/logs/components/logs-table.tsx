@@ -13,22 +13,87 @@ import { resolveFieldDisplayText } from "../state/profile-fields";
 import { isFakeSequenceMode, LogsTableBody } from "./logs-table-body";
 import { LogsTableFooter, LogsTablePagingNotice } from "./logs-table-footer";
 import { LogsTableHeader } from "./logs-table-header";
+import { getColumnSizeVarName } from "./logs-table-sizing";
 
 const ROW_ESTIMATE_PX = 34;
 
 /** Horizontal padding (px-3 = 12px each side) applied to header and row containers. */
-const TABLE_ROW_PADDING_PX = 24;
+const TABLE_HORIZONTAL_PADDING_PX = 24;
+
+const DEFAULT_COLUMN_WIDTH = 180;
+const TIME_COLUMN_WIDTH = 210;
+const LEVEL_COLUMN_WIDTH = 90;
+const MESSAGE_COLUMN_WIDTH = 420;
+const TRACE_COLUMN_WIDTH = 320;
+const SERVICE_COLUMN_WIDTH = 220;
+
+function useContainerWidth(containerElement: HTMLElement | null): number {
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!containerElement) {
+      return;
+    }
+
+    setContainerWidth(containerElement.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(containerElement);
+    return () => observer.disconnect();
+  }, [containerElement]);
+
+  return containerWidth;
+}
+
+function usePersistColumnResize(options: {
+  isResizing: boolean;
+  resizingColumnId: string | false;
+  columnSizing: ColumnSizingState;
+  onColumnResize?: (columnId: string, width: number) => void;
+}): void {
+  const onColumnResizeRef = React.useRef(options.onColumnResize);
+  onColumnResizeRef.current = options.onColumnResize;
+
+  const columnSizingRef = React.useRef(options.columnSizing);
+  columnSizingRef.current = options.columnSizing;
+
+  const prevIsResizingRef = React.useRef(false);
+  const prevResizingColumnIdRef = React.useRef<string | false>(false);
+  React.useEffect(() => {
+    if (prevIsResizingRef.current && !options.isResizing) {
+      const resizedColumnId = prevResizingColumnIdRef.current;
+      if (resizedColumnId !== false) {
+        const width = columnSizingRef.current[resizedColumnId];
+        if (typeof width === "number") {
+          onColumnResizeRef.current?.(resizedColumnId, Math.round(width));
+        }
+      }
+    }
+
+    prevIsResizingRef.current = options.isResizing;
+    prevResizingColumnIdRef.current = options.resizingColumnId;
+  }, [options.isResizing, options.resizingColumnId]);
+}
 
 /** Map column config entry to a default pixel width for TanStack column sizing. */
 function getDefaultColumnSize(column: ColumnConfigEntry): number {
   const id = column.id.toLowerCase();
   const title = column.title.toLowerCase();
-  if (id.includes("time") || title === "time") return 210;
-  if (id.includes("level") || id.includes("severity") || title === "level") return 90;
-  if (id.includes("message") || title === "message") return 420;
-  if (id.includes("trace") || id.includes("span")) return 320;
-  if (id.includes("service") || title === "service") return 220;
-  return 180;
+
+  if (id.includes("time") || title === "time") return TIME_COLUMN_WIDTH;
+  if (id.includes("level") || id.includes("severity") || title === "level") {
+    return LEVEL_COLUMN_WIDTH;
+  }
+  if (id.includes("message") || title === "message") return MESSAGE_COLUMN_WIDTH;
+  if (id.includes("trace") || id.includes("span")) return TRACE_COLUMN_WIDTH;
+  if (id.includes("service") || title === "service") return SERVICE_COLUMN_WIDTH;
+
+  return DEFAULT_COLUMN_WIDTH;
 }
 
 /**
@@ -110,19 +175,17 @@ export function LogsTable(props: {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const [containerElement, setContainerElement] = React.useState<HTMLDivElement | null>(null);
+  const setContainerRefs = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      containerRef.current = element;
+      setContainerElement(element);
+    },
+    [containerRef],
+  );
+
   // Track the scroll container's width so we can expand columns to fill the viewport.
-  const [containerWidth, setContainerWidth] = React.useState(0);
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [containerRef]);
+  const containerWidth = useContainerWidth(containerElement);
 
   const flexColumnId = React.useMemo(
     () => findFlexColumnId(props.visibleColumns),
@@ -130,25 +193,15 @@ export function LogsTable(props: {
   );
 
   const columnSizingInfo = table.getState().columnSizingInfo;
-  const isResizing = columnSizingInfo.isResizingColumn !== false;
+  const resizingColumnId = columnSizingInfo.isResizingColumn;
+  const isResizing = resizingColumnId !== false;
 
-  // Persist column width when resize ends
-  const onColumnResizeRef = React.useRef(props.onColumnResize);
-  onColumnResizeRef.current = props.onColumnResize;
-  const columnSizingRef = React.useRef(columnSizing);
-  columnSizingRef.current = columnSizing;
-
-  const prevIsResizingRef = React.useRef(false);
-  React.useEffect(() => {
-    if (prevIsResizingRef.current && !isResizing) {
-      // Resize just finished — persist all changed column widths
-      for (const [colId, width] of Object.entries(columnSizingRef.current)) {
-        onColumnResizeRef.current?.(colId, Math.round(width));
-      }
-    }
-
-    prevIsResizingRef.current = isResizing;
-  }, [isResizing]);
+  usePersistColumnResize({
+    isResizing,
+    resizingColumnId,
+    columnSizing,
+    onColumnResize: props.onColumnResize,
+  });
 
   /**
    * Precompute CSS variables for column sizes so that cells can read widths
@@ -163,16 +216,17 @@ export function LogsTable(props: {
     let totalSize = 0;
     for (const header of headers) {
       const size = header.column.getSize();
-      vars[`--col-${header.column.id}-size`] = size;
+      vars[getColumnSizeVarName(header.column.id)] = size;
       totalSize += size;
     }
 
     // If viewport is wider than column total, expand the flex column.
-    const availableWidth = containerWidth - TABLE_ROW_PADDING_PX;
+    const availableWidth = containerWidth - TABLE_HORIZONTAL_PADDING_PX;
     if (flexColumnId && availableWidth > totalSize) {
       const extraSpace = availableWidth - totalSize;
-      const currentSize = vars[`--col-${flexColumnId}-size`] ?? 0;
-      vars[`--col-${flexColumnId}-size`] = currentSize + extraSpace;
+      const flexColumnSizeVar = getColumnSizeVarName(flexColumnId);
+      const currentSize = vars[flexColumnSizeVar] ?? 0;
+      vars[flexColumnSizeVar] = currentSize + extraSpace;
       totalSize = availableWidth;
     }
 
@@ -221,7 +275,11 @@ export function LogsTable(props: {
         </div>
       ) : null}
       {/* Single scroll container for header + body so they scroll horizontally together */}
-      <div ref={containerRef} onScroll={() => void handleScroll()} className="flex-1 overflow-auto">
+      <div
+        ref={setContainerRefs}
+        onScroll={() => void handleScroll()}
+        className="flex-1 overflow-auto"
+      >
         <div style={{ minWidth: "100%", ...columnSizeVars }}>
           <LogsTableHeader
             table={table}

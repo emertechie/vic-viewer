@@ -17,6 +17,19 @@ import {
 } from "@dnd-kit/sortable";
 import { flexRender, type Header, type Table } from "@tanstack/react-table";
 import type { LogRow } from "../api/types";
+import { getColumnSizeVarName } from "./logs-table-sizing";
+
+function setContainerScrollLock(
+  containerRef: React.RefObject<HTMLElement | null> | undefined,
+  isLocked: boolean,
+): void {
+  const element = containerRef?.current;
+  if (!element) {
+    return;
+  }
+
+  element.style.overflow = isLocked ? "hidden" : "";
+}
 
 function ColumnResizeHandle(props: { header: Header<LogRow, unknown> }) {
   const { header } = props;
@@ -40,7 +53,7 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   });
 
   const style: React.CSSProperties = {
-    width: `calc(var(--col-${header.column.id}-size) * 1px)`,
+    width: `calc(var(${getColumnSizeVarName(header.column.id)}) * 1px)`,
     // Only apply horizontal translation — ignore scale to prevent stretching
     transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition,
@@ -78,16 +91,17 @@ export function LogsTableHeader(props: {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  React.useEffect(() => {
+    return () => setContainerScrollLock(props.scrollContainerRef, false);
+  }, [props.scrollContainerRef]);
+
   const handleDragStart = React.useCallback(() => {
-    const el = props.scrollContainerRef?.current;
-    if (el) el.style.overflow = "hidden";
+    setContainerScrollLock(props.scrollContainerRef, true);
   }, [props.scrollContainerRef]);
 
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
-      // Restore scroll on the container
-      const el = props.scrollContainerRef?.current;
-      if (el) el.style.overflow = "";
+      setContainerScrollLock(props.scrollContainerRef, false);
 
       const { active, over } = event;
       if (!over || active.id === over.id) return;
@@ -102,8 +116,7 @@ export function LogsTableHeader(props: {
   );
 
   const handleDragCancel = React.useCallback(() => {
-    const el = props.scrollContainerRef?.current;
-    if (el) el.style.overflow = "";
+    setContainerScrollLock(props.scrollContainerRef, false);
   }, [props.scrollContainerRef]);
 
   return (
