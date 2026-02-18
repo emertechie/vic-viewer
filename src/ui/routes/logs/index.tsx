@@ -265,6 +265,7 @@ function LogsPage() {
                 onSelectRow={onSelectRow}
                 onColumnReorder={onColumnReorder}
                 onColumnResize={onColumnResize}
+                onApplyQuickFilter={onApplyQuickFilter}
               />
             </div>
             {columnPickerOpen ? (

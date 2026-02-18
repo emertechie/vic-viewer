@@ -3,12 +3,57 @@ import { flexRender, type RowModel } from "@tanstack/react-table";
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { extractLogSequence } from "../../../../shared/logs/sequence";
 import type { LogProfile, LogRow } from "../api/types";
-import { resolveCoreFieldDisplayText } from "../state/profile-fields";
+import { resolveCoreFieldDisplayText, resolveFieldDisplayText } from "../state/profile-fields";
+import type { QuickFilterOperator, QuickFilterSelector } from "../state/quick-filters";
 import { getColumnSizeVarName } from "./logs-table-sizing";
 
 const FAKE_SEQUENCE_SAMPLE_SIZE = 20;
 
 type SequenceCheckStatus = "pass_full" | "pass_partial" | "fail" | "none";
+
+type QuickFilterHandler = (
+  operator: QuickFilterOperator,
+  selector: QuickFilterSelector,
+  value: string,
+) => void;
+
+function CellQuickFilterButton(props: {
+  label: "=" | "!=";
+  operator: QuickFilterOperator;
+  selector: QuickFilterSelector;
+  value: string;
+  onApplyQuickFilter: QuickFilterHandler;
+}) {
+  const onClick = React.useCallback(
+    (event: React.MouseEvent<HTMLSpanElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      props.onApplyQuickFilter(props.operator, props.selector, props.value);
+    },
+    [props],
+  );
+
+  const onMouseDown = React.useCallback((event: React.MouseEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  return (
+    <span
+      onClick={onClick}
+      onMouseDown={onMouseDown}
+      className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-input px-1 text-[10px] leading-none text-muted-foreground transition-colors hover:text-foreground"
+      aria-hidden
+    >
+      {props.label}
+    </span>
+  );
+}
+
+type ColumnQuickFilterMeta = {
+  field?: string;
+  fields?: string[];
+};
 
 function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
   return (
@@ -117,6 +162,7 @@ export function LogsTableBody(props: {
   fakeSequenceMode: boolean;
   selectedRowKey?: string;
   onSelectRow?: (row: LogRow) => void;
+  onApplyQuickFilter: QuickFilterHandler;
 }) {
   return (
     <div className="relative" style={{ height: props.virtualizer.getTotalSize() }}>
@@ -141,15 +187,51 @@ export function LogsTableBody(props: {
           width: `calc(var(--table-width) * 1px)`,
         };
 
-        const rowCells = row.getVisibleCells().map((cell) => (
-          <div
-            key={cell.id}
-            className="shrink-0 self-center truncate px-1 text-foreground/90"
-            style={{ width: `calc(var(${getColumnSizeVarName(cell.column.id)}) * 1px)` }}
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </div>
-        ));
+        const rowCells = row.getVisibleCells().map((cell) => {
+          const meta = cell.column.columnDef.meta as ColumnQuickFilterMeta | undefined;
+          const field = meta?.field;
+          const fields = meta?.fields;
+          const hasSelector = Boolean(field) || Boolean(fields && fields.length > 0);
+          const value = hasSelector
+            ? resolveFieldDisplayText(row.original.raw, {
+                field,
+                fields,
+              })
+            : null;
+          const canApplyQuickFilter = Boolean(value) && hasSelector;
+
+          return (
+            <div
+              key={cell.id}
+              className="group/cell relative shrink-0 self-center px-1 text-foreground/90"
+              style={{ width: `calc(var(${getColumnSizeVarName(cell.column.id)}) * 1px)` }}
+            >
+              <span className="block truncate">
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </span>
+              {canApplyQuickFilter && value ? (
+                <div className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover/cell:pointer-events-auto group-hover/cell:opacity-100 group-focus-within/cell:pointer-events-auto group-focus-within/cell:opacity-100">
+                  <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/65 p-1 shadow-sm backdrop-blur-sm">
+                    <CellQuickFilterButton
+                      label="="
+                      operator="="
+                      selector={{ field, fields }}
+                      value={value}
+                      onApplyQuickFilter={props.onApplyQuickFilter}
+                    />
+                    <CellQuickFilterButton
+                      label="!="
+                      operator="!="
+                      selector={{ field, fields }}
+                      value={value}
+                      onApplyQuickFilter={props.onApplyQuickFilter}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        });
 
         if (props.onSelectRow) {
           return (
