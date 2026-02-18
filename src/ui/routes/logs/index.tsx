@@ -161,6 +161,19 @@ function LogsPage() {
     [navigate],
   );
 
+  const onColumnReorder = React.useCallback(
+    (newOrder: string[]) => {
+      const currentColumns = columnConfig.columns;
+      // Build a lookup by column id for efficient reorder
+      const columnById = new Map(currentColumns.map((col) => [col.id, col]));
+      const reordered = newOrder
+        .map((id) => columnById.get(id))
+        .filter((col): col is ColumnConfigEntry => col !== undefined);
+      columnConfig.save({ columns: reordered });
+    },
+    [columnConfig],
+  );
+
   const onToggleColumnVisibility = React.useCallback(
     (fieldId: string, field?: string, fields?: string[], title?: string) => {
       const currentColumns = columnConfig.columns;
@@ -227,6 +240,7 @@ function LogsPage() {
                 onLoadOlder={viewer.loadOlder}
                 onLoadNewer={viewer.loadNewer}
                 onSelectRow={onSelectRow}
+                onColumnReorder={onColumnReorder}
               />
             </div>
             {columnPickerOpen ? (

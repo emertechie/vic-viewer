@@ -37,6 +37,7 @@ export function LogsTable(props: {
   onLoadOlder: () => Promise<void>;
   onLoadNewer: () => Promise<void>;
   onSelectRow?: (row: LogRow) => void;
+  onColumnReorder?: (newOrder: string[]) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
   const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
@@ -57,6 +58,15 @@ export function LogsTable(props: {
       },
     }));
   }, [props.visibleColumns]);
+  const columnOrder = React.useMemo(() => columns.map((c) => c.id!), [columns]);
+
+  const handleColumnReorder = React.useCallback(
+    (newOrder: string[]) => {
+      props.onColumnReorder?.(newOrder);
+    },
+    [props.onColumnReorder],
+  );
+
   const fakeSequenceMode = React.useMemo(
     () => isFakeSequenceMode(props.rows, props.activeProfile),
     [props.activeProfile, props.rows],
@@ -74,6 +84,7 @@ export function LogsTable(props: {
   const table = useReactTable({
     data: props.rows,
     columns,
+    state: { columnOrder },
     getRowId: (row) => row.key,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -119,7 +130,11 @@ export function LogsTable(props: {
       {/* Single scroll container for header + body so they scroll horizontally together */}
       <div ref={containerRef} onScroll={() => void handleScroll()} className="flex-1 overflow-auto">
         <div style={{ width: table.getTotalSize() }}>
-          <LogsTableHeader table={table} />
+          <LogsTableHeader
+            table={table}
+            columnOrder={columnOrder}
+            onColumnReorder={handleColumnReorder}
+          />
           <LogsTableBody
             virtualizer={virtualizer}
             rowModel={rowModel}
