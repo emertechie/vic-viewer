@@ -437,13 +437,6 @@ export function ColumnPickerModal(props: {
     [columnConfig],
   );
 
-  const handleVisibleColumnsChange = React.useCallback(
-    (nextColumns: ColumnConfigEntry[]) => {
-      saveColumns(nextColumns);
-    },
-    [saveColumns],
-  );
-
   const handleToggleField = React.useCallback(
     (field: AvailableField, visible: boolean) => {
       if (visible) {
@@ -509,7 +502,7 @@ export function ColumnPickerModal(props: {
               Visible Columns ({localColumns.length})
             </h3>
             <div className="flex-1 overflow-auto">
-              <VisibleColumnsList columns={localColumns} onChange={handleVisibleColumnsChange} />
+              <VisibleColumnsList columns={localColumns} onChange={saveColumns} />
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>

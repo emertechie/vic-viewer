@@ -1,10 +1,11 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { LogRow } from "@/ui/features/logs/api/types";
-import type { ColumnConfigEntry } from "@/ui/features/logs/api/types";
+import type { ColumnConfigEntry, LogRow } from "@/ui/features/logs/api/types";
+import { ColumnPickerModal } from "@/ui/features/logs/components/column-picker-modal";
 import { LogDetailsDrawer } from "@/ui/features/logs/components/log-details-drawer";
 import { LogsQueryControls } from "@/ui/features/logs/components/logs-query-controls";
 import { LogsTable } from "@/ui/features/logs/components/logs-table";
+import { LogsTableToolbar } from "@/ui/features/logs/components/logs-table-toolbar";
 import { useActiveLogProfile } from "@/ui/features/logs/hooks/use-active-log-profile";
 import { useColumnConfig } from "@/ui/features/logs/hooks/use-column-config";
 import { useKeyboardRowNavigation } from "@/ui/features/logs/hooks/use-keyboard-row-navigation";
@@ -261,36 +262,3 @@ function LogsPage() {
     </div>
   );
 }
-
-/** Small toolbar row above the table with the "Columns" button. */
-function LogsTableToolbar(props: { onOpenColumnPicker: () => void }) {
-  return (
-    <div className="flex items-center justify-end gap-2 border-b border-border px-3 py-2">
-      <button
-        type="button"
-        onClick={props.onOpenColumnPicker}
-        className="inline-flex items-center gap-1.5 rounded border border-input px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-3.5 w-3.5"
-          aria-hidden
-        >
-          <rect x="3" y="3" width="7" height="18" rx="1" />
-          <rect x="14" y="3" width="7" height="18" rx="1" />
-        </svg>
-        Columns
-      </button>
-    </div>
-  );
-}
-
-// Lazy-import placeholder - the actual ColumnPickerModal is defined in its own file.
-// We import it here so the route doesn't need to know about internals.
-import { ColumnPickerModal } from "@/ui/features/logs/components/column-picker-modal";
