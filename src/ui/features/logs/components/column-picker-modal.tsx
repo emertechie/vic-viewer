@@ -1,5 +1,16 @@
 import * as React from "react";
 import { GripVertical, Plus, Trash2, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/ui/components/ui/alert-dialog";
 import { Checkbox } from "@/ui/components/ui/checkbox";
 import {
   Dialog,
@@ -465,8 +476,6 @@ export function ColumnPickerModal(props: {
   );
 
   const handleReset = React.useCallback(() => {
-    if (!window.confirm("Reset columns to the profile defaults?")) return;
-
     const defaults = getDefaultColumns(profile);
     setLocalColumns(defaults);
     setAllCustomColumns([]);
@@ -491,13 +500,28 @@ export function ColumnPickerModal(props: {
             <div className="flex-1 overflow-auto">
               <VisibleColumnsList columns={localColumns} onChange={handleVisibleColumnsChange} />
             </div>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="mt-2 self-start text-xs text-muted-foreground underline transition-colors hover:text-foreground"
-            >
-              Reset to default
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="mt-2 self-start text-xs text-muted-foreground underline transition-colors hover:text-foreground"
+                >
+                  Reset to default
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset columns?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will discard your column configuration and restore the profile defaults.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleReset}>Reset</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
           {/* RHS: Available fields */}
           <div className="flex w-1/2 flex-col overflow-hidden border-l border-border pl-6">
