@@ -108,7 +108,12 @@ export function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile): b
   );
 }
 
-export function LogsTableBody(props: {
+/**
+ * Inner body content extracted so it can be memoized during column resizing.
+ * During resize, only CSS variables change (applied to the parent), so the
+ * body DOM doesn't need to re-render.
+ */
+const LogsTableBodyInner = React.memo(function LogsTableBodyInner(props: {
   virtualizer: Virtualizer<HTMLDivElement, Element>;
   rowModel: RowModel<LogRow>;
   rows: LogRow[];
@@ -116,7 +121,6 @@ export function LogsTableBody(props: {
   fakeSequenceMode: boolean;
   selectedRowKey?: string;
   onSelectRow?: (row: LogRow) => void;
-  tableWidth: number;
 }) {
   return (
     <div className="relative" style={{ height: props.virtualizer.getTotalSize() }}>
@@ -134,18 +138,18 @@ export function LogsTableBody(props: {
           isSelected: props.selectedRowKey === row.id,
           isSelectable: Boolean(props.onSelectRow),
         });
-        const rowStyle = {
+        const rowStyle: React.CSSProperties = {
           top: 0,
           transform: `translateY(${virtualRow.start}px)`,
           height: `${virtualRow.size}px`,
-          width: props.tableWidth,
-        } as const;
+          width: `calc(var(--table-width) * 1px)`,
+        };
 
         const rowCells = row.getVisibleCells().map((cell) => (
           <div
             key={cell.id}
             className="shrink-0 self-center truncate px-1 text-foreground/90"
-            style={{ width: cell.column.getSize() }}
+            style={{ width: `calc(var(--col-${cell.column.id}-size) * 1px)` }}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </div>
@@ -172,5 +176,29 @@ export function LogsTableBody(props: {
         );
       })}
     </div>
+  );
+});
+
+export function LogsTableBody(props: {
+  virtualizer: Virtualizer<HTMLDivElement, Element>;
+  rowModel: RowModel<LogRow>;
+  rows: LogRow[];
+  activeProfile: LogProfile;
+  fakeSequenceMode: boolean;
+  selectedRowKey?: string;
+  onSelectRow?: (row: LogRow) => void;
+  /** True while a column resize drag is in progress — used to skip re-renders. */
+  isResizing: boolean;
+}) {
+  return (
+    <LogsTableBodyInner
+      virtualizer={props.virtualizer}
+      rowModel={props.rowModel}
+      rows={props.rows}
+      activeProfile={props.activeProfile}
+      fakeSequenceMode={props.fakeSequenceMode}
+      selectedRowKey={props.selectedRowKey}
+      onSelectRow={props.onSelectRow}
+    />
   );
 }

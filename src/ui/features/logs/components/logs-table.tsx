@@ -1,5 +1,10 @@
 import * as React from "react";
-import { getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import {
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type ColumnSizingState,
+} from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ColumnConfigEntry, LogProfile, LogRow, LogsPageInfo } from "../api/types";
 import { useLogsTablePaging } from "../hooks/use-logs-table-paging";
@@ -38,6 +43,7 @@ export function LogsTable(props: {
   onLoadNewer: () => Promise<void>;
   onSelectRow?: (row: LogRow) => void;
   onColumnReorder?: (newOrder: string[]) => void;
+  onColumnResize?: (columnId: string, width: number) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
   const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
@@ -45,6 +51,7 @@ export function LogsTable(props: {
       id: column.id,
       header: column.title,
       size: column.width ?? getDefaultColumnSize(column),
+      minSize: 50,
       cell: (context) => {
         const row = context.row.original;
         if (column.field || column.fields) {
@@ -59,6 +66,8 @@ export function LogsTable(props: {
     }));
   }, [props.visibleColumns]);
   const columnOrder = React.useMemo(() => columns.map((c) => c.id!), [columns]);
+
+  const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({});
 
   const fakeSequenceMode = React.useMemo(
     () => isFakeSequenceMode(props.rows, props.activeProfile),
@@ -77,10 +86,49 @@ export function LogsTable(props: {
   const table = useReactTable({
     data: props.rows,
     columns,
-    state: { columnOrder },
+    state: { columnOrder, columnSizing },
+    onColumnSizingChange: setColumnSizing,
+    columnResizeMode: "onChange",
     getRowId: (row) => row.key,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const columnSizingInfo = table.getState().columnSizingInfo;
+  const isResizing = columnSizingInfo.isResizingColumn !== false;
+
+  // Persist column width when resize ends
+  const onColumnResizeRef = React.useRef(props.onColumnResize);
+  onColumnResizeRef.current = props.onColumnResize;
+  const columnSizingRef = React.useRef(columnSizing);
+  columnSizingRef.current = columnSizing;
+
+  const prevIsResizingRef = React.useRef(false);
+  React.useEffect(() => {
+    if (prevIsResizingRef.current && !isResizing) {
+      // Resize just finished — persist all changed column widths
+      for (const [colId, width] of Object.entries(columnSizingRef.current)) {
+        onColumnResizeRef.current?.(colId, Math.round(width));
+      }
+    }
+
+    prevIsResizingRef.current = isResizing;
+  }, [isResizing]);
+
+  /**
+   * Precompute CSS variables for column sizes so that cells can read widths
+   * from CSS without triggering React re-renders during an active resize.
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = table.getLeafHeaders();
+    const vars: Record<string, number> = {};
+    for (const header of headers) {
+      vars[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    vars["--table-width"] = table.getTotalSize();
+    return vars;
+    // columnSizingInfo + columnSizing are needed so the memo recalculates during
+    // resize drags (the `table` ref itself is stable and won't trigger updates).
+  }, [columnSizingInfo, columnSizing, columns, table]);
 
   const rowModel = table.getRowModel();
   const selectedRowIndex = React.useMemo(() => {
@@ -122,7 +170,7 @@ export function LogsTable(props: {
       ) : null}
       {/* Single scroll container for header + body so they scroll horizontally together */}
       <div ref={containerRef} onScroll={() => void handleScroll()} className="flex-1 overflow-auto">
-        <div style={{ width: table.getTotalSize() }}>
+        <div style={{ minWidth: "100%", ...columnSizeVars }}>
           <LogsTableHeader
             table={table}
             columnOrder={columnOrder}
@@ -137,7 +185,7 @@ export function LogsTable(props: {
             fakeSequenceMode={fakeSequenceMode}
             selectedRowKey={props.selectedRowKey}
             onSelectRow={props.onSelectRow}
-            tableWidth={table.getTotalSize()}
+            isResizing={isResizing}
           />
         </div>
       </div>

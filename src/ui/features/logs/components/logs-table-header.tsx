@@ -15,9 +15,23 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { flexRender, type Header, type Table } from "@tanstack/react-table";
 import type { LogRow } from "../api/types";
+
+function ColumnResizeHandle(props: { header: Header<LogRow, unknown> }) {
+  const { header } = props;
+
+  return (
+    <div
+      onDoubleClick={() => header.column.resetSize()}
+      onMouseDown={header.getResizeHandler()}
+      onTouchStart={header.getResizeHandler()}
+      className={`absolute top-0 right-0 z-20 h-full w-[3px] cursor-col-resize select-none touch-none ${
+        header.column.getIsResizing() ? "bg-primary" : "hover:bg-primary/50 active:bg-primary"
+      }`}
+    />
+  );
+}
 
 function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   const { header } = props;
@@ -26,7 +40,7 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   });
 
   const style: React.CSSProperties = {
-    width: header.getSize(),
+    width: `calc(var(--col-${header.column.id}-size) * 1px)`,
     // Only apply horizontal translation — ignore scale to prevent stretching
     transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition,
@@ -37,12 +51,17 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      className="shrink-0 cursor-grab truncate px-1 touch-none active:cursor-grabbing"
+      className="relative shrink-0 border-r border-border/50 first:border-l"
       style={style}
     >
-      {flexRender(header.column.columnDef.header, header.getContext())}
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab truncate px-1 touch-none active:cursor-grabbing"
+      >
+        {flexRender(header.column.columnDef.header, header.getContext())}
+      </div>
+      <ColumnResizeHandle header={header} />
     </div>
   );
 }
