@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
 import { useEscapeKey } from "@/ui/hooks/use-escape-key";
 import type { ColumnConfigEntry, LogProfile, LogRow } from "../api/types";
+import type { QuickFilterOperator, QuickFilterSelector } from "../state/quick-filters";
 
 import { LogDetailsFieldSetSection } from "./log-details-field-set-section";
 import { buildProfileFieldSets } from "./log-details-field-sets";
@@ -49,6 +50,11 @@ export function LogDetailsDrawer(props: {
   onSelectNext: () => void;
   onClose: () => void;
   onToggleColumn: (fieldId: string, field?: string, fields?: string[], title?: string) => void;
+  onApplyQuickFilter: (
+    operator: QuickFilterOperator,
+    selector: QuickFilterSelector,
+    value: string,
+  ) => void;
 }) {
   const { copyToClipboard } = useClipboard();
   const [wrapRawJson, setWrapRawJson] = React.useState(false);
@@ -120,6 +126,7 @@ export function LogDetailsDrawer(props: {
                   visibleColumns={props.visibleColumns}
                   onCopy={copyToClipboard}
                   onToggleColumn={props.onToggleColumn}
+                  onApplyQuickFilter={props.onApplyQuickFilter}
                 />
               ))}
               <LogDetailsRawJsonSection

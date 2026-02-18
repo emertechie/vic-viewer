@@ -7,9 +7,7 @@ import {
   TooltipTrigger,
 } from "@/ui/components/ui/tooltip";
 import type { LogsSearch, LogsRange, RelativeRange } from "../state/search";
-import { buildRelativeWindow } from "../state/search";
-
-const WILDCARD_QUERY = "*";
+import { buildRelativeWindow, normalizeLogsQuery, WILDCARD_QUERY } from "../state/search";
 
 function toLocalDateTimeValue(isoTimestamp: string): string {
   const date = new Date(isoTimestamp);
@@ -26,8 +24,7 @@ function fromLocalDateTimeValue(localDateTime: string): string {
 }
 
 function normalizeQuery(value: string): string {
-  const trimmed = value.trim();
-  return trimmed || WILDCARD_QUERY;
+  return normalizeLogsQuery(value);
 }
 
 export function LogsQueryControls(props: {

@@ -12,6 +12,11 @@ import { useKeyboardRowNavigation } from "@/ui/features/logs/hooks/use-keyboard-
 import { useLogsViewer } from "@/ui/features/logs/hooks/use-logs-viewer";
 import { fieldSelectorsMatch } from "@/ui/features/logs/state/profile-fields";
 import {
+  createLogsQuickFilterService,
+  type QuickFilterOperator,
+  type QuickFilterSelector,
+} from "@/ui/features/logs/state/quick-filters";
+import {
   parseLogsSearch,
   refreshRelativeWindow,
   type LogsSearch,
@@ -34,6 +39,7 @@ function LogsPage() {
   const activeProfile = useActiveLogProfile();
   const columnConfig = useColumnConfig(activeProfile.data);
   const [columnPickerOpen, setColumnPickerOpen] = React.useState(false);
+  const quickFilterService = React.useMemo(() => createLogsQuickFilterService(), []);
   const isProfileLoading = activeProfile.isLoading && !activeProfile.data;
   const profileErrorMessage = activeProfile.error
     ? activeProfile.error instanceof Error
@@ -188,6 +194,24 @@ function LogsPage() {
     [columnConfig],
   );
 
+  const onApplyQuickFilter = React.useCallback(
+    (operator: QuickFilterOperator, selector: QuickFilterSelector, value: string) => {
+      const nextSearch = quickFilterService.applyFilter(search, {
+        operator,
+        selector,
+        value,
+      });
+
+      navigate({
+        search: () => ({
+          ...nextSearch,
+          selected: undefined,
+        }),
+      });
+    },
+    [navigate, quickFilterService, search],
+  );
+
   return (
     <div className="relative flex h-full flex-col">
       <LogsQueryControls
@@ -258,6 +282,7 @@ function LogsPage() {
           onSelectNext={onSelectNext}
           onClose={onCloseDrawer}
           onToggleColumn={onToggleColumnVisibility}
+          onApplyQuickFilter={onApplyQuickFilter}
         />
       ) : null}
     </div>

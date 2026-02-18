@@ -35,6 +35,13 @@ export type LogsSearch = {
   selected?: string;
 };
 
+export const WILDCARD_QUERY = "*";
+
+export function normalizeLogsQuery(value?: string | null): string {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : WILDCARD_QUERY;
+}
+
 function toValidIso(value?: string): string | null {
   if (!value) {
     return null;
@@ -64,7 +71,7 @@ export function buildRelativeWindow(
 export function parseLogsSearch(search: unknown, now: Date = new Date()): LogsSearch {
   const parsed = logsSearchSchema.parse(search);
 
-  const q = parsed.q?.trim() ? parsed.q.trim() : "*";
+  const q = normalizeLogsQuery(parsed.q);
   const range = parsed.range ?? "15m";
   const live = parsed.live ?? "0";
 
