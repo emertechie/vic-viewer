@@ -117,7 +117,7 @@ export function LogsTableHeader(props: {
       <SortableContext items={props.columnOrder} strategy={horizontalListSortingStrategy}>
         <div
           className="sticky top-0 z-10 flex border-b border-border bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"
-          style={{ width: "100%" }}
+          style={{ width: `calc(var(--table-width) * 1px)` }}
         >
           {props.table
             .getHeaderGroups()
