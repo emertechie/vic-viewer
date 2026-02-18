@@ -16,6 +16,9 @@ import { LogsTableHeader } from "./logs-table-header";
 
 const ROW_ESTIMATE_PX = 34;
 
+/** Horizontal padding (px-3 = 12px each side) applied to header and row containers. */
+const TABLE_ROW_PADDING_PX = 24;
+
 /** Map column config entry to a default pixel width for TanStack column sizing. */
 function getDefaultColumnSize(column: ColumnConfigEntry): number {
   const id = column.id.toLowerCase();
@@ -26,6 +29,20 @@ function getDefaultColumnSize(column: ColumnConfigEntry): number {
   if (id.includes("trace") || id.includes("span")) return 320;
   if (id.includes("service") || title === "service") return 220;
   return 180;
+}
+
+/**
+ * Find the column that should absorb extra horizontal space when total
+ * column width is less than the viewport. Prefers the "message" column;
+ * falls back to the last column.
+ */
+function findFlexColumnId(visibleColumns: ColumnConfigEntry[]): string | undefined {
+  const messageCol = visibleColumns.find((c) => {
+    const id = c.id.toLowerCase();
+    const title = c.title.toLowerCase();
+    return id.includes("message") || title === "message";
+  });
+  return messageCol?.id ?? visibleColumns.at(-1)?.id;
 }
 
 export function LogsTable(props: {
@@ -93,6 +110,25 @@ export function LogsTable(props: {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  // Track the scroll container's width so we can expand columns to fill the viewport.
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  const flexColumnId = React.useMemo(
+    () => findFlexColumnId(props.visibleColumns),
+    [props.visibleColumns],
+  );
+
   const columnSizingInfo = table.getState().columnSizingInfo;
   const isResizing = columnSizingInfo.isResizingColumn !== false;
 
@@ -117,18 +153,34 @@ export function LogsTable(props: {
   /**
    * Precompute CSS variables for column sizes so that cells can read widths
    * from CSS without triggering React re-renders during an active resize.
+   *
+   * When the total column width is narrower than the container, the flex
+   * column (message or last) is inflated to fill the remaining space.
    */
   const columnSizeVars = React.useMemo(() => {
     const headers = table.getLeafHeaders();
     const vars: Record<string, number> = {};
+    let totalSize = 0;
     for (const header of headers) {
-      vars[`--col-${header.column.id}-size`] = header.column.getSize();
+      const size = header.column.getSize();
+      vars[`--col-${header.column.id}-size`] = size;
+      totalSize += size;
     }
-    vars["--table-width"] = table.getTotalSize();
+
+    // If viewport is wider than column total, expand the flex column.
+    const availableWidth = containerWidth - TABLE_ROW_PADDING_PX;
+    if (flexColumnId && availableWidth > totalSize) {
+      const extraSpace = availableWidth - totalSize;
+      const currentSize = vars[`--col-${flexColumnId}-size`] ?? 0;
+      vars[`--col-${flexColumnId}-size`] = currentSize + extraSpace;
+      totalSize = availableWidth;
+    }
+
+    vars["--table-width"] = totalSize;
     return vars;
     // columnSizingInfo + columnSizing are needed so the memo recalculates during
     // resize drags (the `table` ref itself is stable and won't trigger updates).
-  }, [columnSizingInfo, columnSizing, columns, table]);
+  }, [columnSizingInfo, columnSizing, columns, table, containerWidth, flexColumnId]);
 
   const rowModel = table.getRowModel();
   const selectedRowIndex = React.useMemo(() => {
