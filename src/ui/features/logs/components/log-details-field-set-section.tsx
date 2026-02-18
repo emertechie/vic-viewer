@@ -38,7 +38,7 @@ function ToggleColumnButton(props: {
           onClick={handleClick}
           className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
             props.isVisible
-              ? "border-input bg-muted text-foreground"
+              ? "border-foreground/30 bg-muted text-foreground dark:border-input"
               : "border-input bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
           }`}
           aria-label={
