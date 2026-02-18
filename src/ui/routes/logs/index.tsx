@@ -12,6 +12,11 @@ import { useKeyboardRowNavigation } from "@/ui/features/logs/hooks/use-keyboard-
 import { useLogsViewer } from "@/ui/features/logs/hooks/use-logs-viewer";
 import { fieldSelectorsMatch } from "@/ui/features/logs/state/profile-fields";
 import {
+  createLogsQuickFilterService,
+  type QuickFilterOperator,
+  type QuickFilterSelector,
+} from "@/ui/features/logs/state/quick-filters";
+import {
   parseLogsSearch,
   refreshRelativeWindow,
   type LogsSearch,
@@ -21,6 +26,8 @@ export const Route = createFileRoute("/logs/")({
   validateSearch: (search) => parseLogsSearch(search),
   component: LogsPage,
 });
+
+const LIVE_REFRESH_INTERVAL_MS = 5000;
 
 function getAdjacentRowKey(rows: LogRow[], selectedRowIndex: number, step: -1 | 1): string | null {
   const nextRow = rows[selectedRowIndex + step];
@@ -34,6 +41,7 @@ function LogsPage() {
   const activeProfile = useActiveLogProfile();
   const columnConfig = useColumnConfig(activeProfile.data);
   const [columnPickerOpen, setColumnPickerOpen] = React.useState(false);
+  const quickFilterService = React.useMemo(() => createLogsQuickFilterService(), []);
   const isProfileLoading = activeProfile.isLoading && !activeProfile.data;
   const profileErrorMessage = activeProfile.error
     ? activeProfile.error instanceof Error
@@ -96,11 +104,12 @@ function LogsPage() {
 
   const onApplySearch = React.useCallback(
     (nextSearch: LogsSearch) => {
+      const nextSearchWithoutSelection = {
+        ...nextSearch,
+        selected: undefined,
+      };
       navigate({
-        search: () => ({
-          ...nextSearch,
-          selected: undefined,
-        }),
+        search: () => nextSearchWithoutSelection,
       });
     },
     [navigate],
@@ -132,7 +141,7 @@ function LogsPage() {
         search: () => refreshed,
         replace: true,
       });
-    }, 5000);
+    }, LIVE_REFRESH_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
@@ -198,6 +207,25 @@ function LogsPage() {
     [columnConfig],
   );
 
+  const onApplyQuickFilter = React.useCallback(
+    (operator: QuickFilterOperator, selector: QuickFilterSelector, value: string) => {
+      const nextSearch = quickFilterService.applyFilter(search, {
+        operator,
+        selector,
+        value,
+      });
+      const nextSearchWithoutSelection = {
+        ...nextSearch,
+        selected: undefined,
+      };
+
+      navigate({
+        search: () => nextSearchWithoutSelection,
+      });
+    },
+    [navigate, quickFilterService, search],
+  );
+
   return (
     <div className="relative flex h-full flex-col">
       <LogsQueryControls
@@ -241,6 +269,7 @@ function LogsPage() {
                 onSelectRow={onSelectRow}
                 onColumnReorder={onColumnReorder}
                 onColumnResize={onColumnResize}
+                onApplyQuickFilter={onApplyQuickFilter}
               />
             </div>
             {columnPickerOpen ? (
@@ -269,6 +298,7 @@ function LogsPage() {
           onSelectNext={onSelectNext}
           onClose={onCloseDrawer}
           onToggleColumn={onToggleColumnVisibility}
+          onApplyQuickFilter={onApplyQuickFilter}
         />
       ) : null}
     </div>

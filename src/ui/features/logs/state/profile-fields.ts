@@ -125,6 +125,10 @@ export function getFieldSelectorKeys(
   return [];
 }
 
+export function hasFieldSelector(entry: Pick<ProfileRenderableField, "field" | "fields">): boolean {
+  return getFieldSelectorKeys(entry).length > 0;
+}
+
 /**
  * Check whether a column config entry matches a field selector by comparing
  * the underlying raw field keys. This is the correct way to determine
@@ -135,9 +139,10 @@ export function fieldSelectorsMatch(
   a: Pick<ProfileRenderableField, "field" | "fields">,
   b: Pick<ProfileRenderableField, "field" | "fields">,
 ): boolean {
+  if (!hasFieldSelector(a) || !hasFieldSelector(b)) return false;
+
   const keysA = getFieldSelectorKeys(a);
   const keysB = getFieldSelectorKeys(b);
-  if (keysA.length === 0 || keysB.length === 0) return false;
   if (keysA.length !== keysB.length) return false;
   return keysA.every((k, i) => k === keysB[i]);
 }

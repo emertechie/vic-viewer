@@ -3,7 +3,8 @@ import { Columns } from "lucide-react";
 import { CopyButton } from "@/ui/components/copy-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/components/ui/tooltip";
 import type { ColumnConfigEntry } from "../api/types";
-import { fieldSelectorsMatch } from "../state/profile-fields";
+import { fieldSelectorsMatch, hasFieldSelector } from "../state/profile-fields";
+import type { QuickFilterOperator, QuickFilterSelector } from "../state/quick-filters";
 import type { DrawerFieldRow, DrawerFieldSet } from "./log-details-field-sets";
 import { LogDetailsCodeBlock } from "./log-details-code-block";
 
@@ -13,6 +14,11 @@ type ToggleColumnHandler = (
   field?: string,
   fields?: string[],
   title?: string,
+) => void;
+type QuickFilterHandler = (
+  operator: QuickFilterOperator,
+  selector: QuickFilterSelector,
+  value: string,
 ) => void;
 
 function ToggleColumnButton(props: {
@@ -32,8 +38,8 @@ function ToggleColumnButton(props: {
           onClick={handleClick}
           className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
             props.isVisible
-              ? "border-primary/60 bg-primary/10 text-primary"
-              : "border-input text-muted-foreground hover:text-foreground"
+              ? "border-foreground/30 bg-muted text-foreground dark:border-input"
+              : "border-input bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
           }`}
           aria-label={
             props.isVisible ? `Hide ${props.row.label} column` : `Show ${props.row.label} as column`
@@ -42,8 +48,52 @@ function ToggleColumnButton(props: {
           <Columns className="h-3 w-3" aria-hidden />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={6}>
+      <TooltipContent side="top" sideOffset={6}>
         {props.isVisible ? "Hide column" : "Show as column"}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function QuickFilterButton(props: {
+  label: "=" | "!=";
+  operator: QuickFilterOperator;
+  row: DrawerFieldRow;
+  disabled: boolean;
+  onApplyQuickFilter: QuickFilterHandler;
+}) {
+  const handleClick = React.useCallback(() => {
+    if (!props.row.value) {
+      return;
+    }
+
+    props.onApplyQuickFilter(
+      props.operator,
+      {
+        field: props.row.field,
+        fields: props.row.fields,
+      },
+      props.row.value,
+    );
+  }, [props.onApplyQuickFilter, props.operator, props.row]);
+
+  const tooltip = props.operator === "=" ? "Filter for this value" : "Filter out this value";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={props.disabled}
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-input px-1 text-[10px] leading-none text-muted-foreground transition-colors enabled:hover:text-foreground disabled:opacity-50"
+          aria-label={`${props.row.label} ${props.operator} ${props.row.value ?? ""}`}
+        >
+          {props.label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>
+        {tooltip}
       </TooltipContent>
     </Tooltip>
   );
@@ -54,30 +104,49 @@ function DetailRow(props: {
   visibleColumns: ColumnConfigEntry[];
   onCopy: CopyHandler;
   onToggleColumn: ToggleColumnHandler;
+  onApplyQuickFilter: QuickFilterHandler;
 }) {
-  const displayValue = props.row.value ?? "\u2014";
-  const canCopy = Boolean(props.row.value);
+  const { row, visibleColumns, onCopy, onToggleColumn, onApplyQuickFilter } = props;
+  const displayValue = row.value ?? "\u2014";
+  const canCopy = Boolean(row.value);
+  const canApplyQuickFilter = canCopy && hasFieldSelector(row);
   // Match by underlying field selector so IDs from different sources still match
-  const isVisible = props.visibleColumns.some((col) => fieldSelectorsMatch(col, props.row));
+  const isVisible = visibleColumns.some((col) => fieldSelectorsMatch(col, row));
 
   const handleCopyValue = React.useCallback(async () => {
-    if (!props.row.value) {
+    if (!row.value) {
       return;
     }
 
-    await props.onCopy(props.row.value);
-  }, [props.onCopy, props.row.value]);
+    await onCopy(row.value);
+  }, [onCopy, row.value]);
 
   return (
-    <div className="grid grid-cols-[100px_1fr_auto_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
-      <span className="text-muted-foreground">{props.row.label}</span>
-      {props.row.valueType === "sql" && props.row.value ? (
-        <LogDetailsCodeBlock code={props.row.value} language="sql" className="max-h-48" />
+    <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
+      <span className="text-muted-foreground">{row.label}</span>
+      {row.valueType === "sql" && row.value ? (
+        <LogDetailsCodeBlock code={row.value} language="sql" className="max-h-48" />
       ) : (
         <span className="break-all text-foreground">{displayValue}</span>
       )}
-      <ToggleColumnButton row={props.row} isVisible={isVisible} onToggle={props.onToggleColumn} />
-      <CopyButton label={props.row.label} disabled={!canCopy} onCopy={handleCopyValue} />
+      <div className="flex items-start gap-1">
+        <QuickFilterButton
+          label="="
+          operator="="
+          row={row}
+          disabled={!canApplyQuickFilter}
+          onApplyQuickFilter={onApplyQuickFilter}
+        />
+        <QuickFilterButton
+          label="!="
+          operator="!="
+          row={row}
+          disabled={!canApplyQuickFilter}
+          onApplyQuickFilter={onApplyQuickFilter}
+        />
+        <CopyButton label={row.label} disabled={!canCopy} onCopy={handleCopyValue} />
+        <ToggleColumnButton row={row} isVisible={isVisible} onToggle={onToggleColumn} />
+      </div>
     </div>
   );
 }
@@ -87,6 +156,7 @@ export function LogDetailsFieldSetSection(props: {
   visibleColumns: ColumnConfigEntry[];
   onCopy: CopyHandler;
   onToggleColumn: ToggleColumnHandler;
+  onApplyQuickFilter: QuickFilterHandler;
 }) {
   return (
     <section>
@@ -102,6 +172,7 @@ export function LogDetailsFieldSetSection(props: {
           visibleColumns={props.visibleColumns}
           onCopy={props.onCopy}
           onToggleColumn={props.onToggleColumn}
+          onApplyQuickFilter={props.onApplyQuickFilter}
         />
       ))}
     </section>

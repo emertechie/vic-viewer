@@ -10,6 +10,7 @@ import type { ColumnConfigEntry, LogProfile, LogRow, LogsPageInfo } from "../api
 import { useLogsTablePaging } from "../hooks/use-logs-table-paging";
 import { getPageInfoOrDefault } from "../state/paging";
 import { resolveFieldDisplayText } from "../state/profile-fields";
+import type { QuickFilterOperator, QuickFilterSelector } from "../state/quick-filters";
 import { isFakeSequenceMode, LogsTableBody } from "./logs-table-body";
 import { LogsTableFooter, LogsTablePagingNotice } from "./logs-table-footer";
 import { LogsTableHeader } from "./logs-table-header";
@@ -131,6 +132,11 @@ export function LogsTable(props: {
   onSelectRow?: (row: LogRow) => void;
   onColumnReorder?: (newOrder: string[]) => void;
   onColumnResize?: (columnId: string, width: number) => void;
+  onApplyQuickFilter: (
+    operator: QuickFilterOperator,
+    selector: QuickFilterSelector,
+    value: string,
+  ) => void;
 }) {
   const pageInfo = getPageInfoOrDefault(props.pageInfo);
   const columns = React.useMemo<ColumnDef<LogRow>[]>(() => {
@@ -139,6 +145,10 @@ export function LogsTable(props: {
       header: column.title,
       size: column.width ?? getDefaultColumnSize(column),
       minSize: 50,
+      meta: {
+        field: column.field,
+        fields: column.fields,
+      },
       cell: (context) => {
         const row = context.row.original;
         if (column.field || column.fields) {
@@ -216,6 +226,11 @@ export function LogsTable(props: {
    * column (message or last) is inflated to fill the remaining space.
    */
   const columnSizeVars = React.useMemo(() => {
+    // Recompute widths while resize state changes even though the table instance
+    // itself is stable across renders.
+    void columnSizingInfo;
+    void columnSizing;
+
     const headers = table.getLeafHeaders();
     const vars: Record<string, number> = {};
     let totalSize = 0;
@@ -239,7 +254,7 @@ export function LogsTable(props: {
     return vars;
     // columnSizingInfo + columnSizing are needed so the memo recalculates during
     // resize drags (the `table` ref itself is stable and won't trigger updates).
-  }, [columnSizingInfo, columnSizing, columns, table, containerWidth, flexColumnId]);
+  }, [columnSizingInfo, columnSizing, table, containerWidth, flexColumnId]);
 
   const rowModel = table.getRowModel();
   const selectedRowIndex = React.useMemo(() => {
@@ -300,6 +315,7 @@ export function LogsTable(props: {
             fakeSequenceMode={fakeSequenceMode}
             selectedRowKey={props.selectedRowKey}
             onSelectRow={props.onSelectRow}
+            onApplyQuickFilter={props.onApplyQuickFilter}
           />
         </div>
       </div>

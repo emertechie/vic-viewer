@@ -34,8 +34,11 @@ export function CopyButton(props: {
     }, COPIED_TOOLTIP_DURATION_MS);
   }, [props.onCopy]);
 
+  const tooltipOpen = showCopiedTooltip ? true : undefined;
+  const tooltipLabel = showCopiedTooltip ? "Copied" : `Copy ${props.label}`;
+
   return (
-    <Tooltip open={showCopiedTooltip}>
+    <Tooltip open={tooltipOpen}>
       <TooltipTrigger asChild>
         <button
           type="button"
@@ -43,13 +46,12 @@ export function CopyButton(props: {
           onClick={handleCopy}
           className="inline-flex h-5 w-5 items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           aria-label={`Copy ${props.label}`}
-          title={`Copy ${props.label}`}
         >
           <Copy className="h-3 w-3" aria-hidden="true" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={6}>
-        Copied
+      <TooltipContent side="top" sideOffset={6}>
+        {tooltipLabel}
       </TooltipContent>
     </Tooltip>
   );
