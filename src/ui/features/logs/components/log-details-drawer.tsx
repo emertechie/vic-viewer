@@ -2,6 +2,7 @@ import * as React from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { TooltipProvider } from "@/ui/components/ui/tooltip";
 import { useClipboard } from "@/ui/hooks/use-clipboard";
+import { useEscapeKey } from "@/ui/hooks/use-escape-key";
 import type { ColumnConfigEntry, LogProfile, LogRow } from "../api/types";
 import { resolveCoreFieldDisplayText } from "../state/profile-fields";
 import { LogDetailsFieldSetSection } from "./log-details-field-set-section";
@@ -35,25 +36,6 @@ function DrawerNavigationButton(props: {
       {props.children}
     </button>
   );
-}
-
-function useEscapeKey(enabled: boolean, onEscape: () => void) {
-  React.useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onEscape();
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [enabled, onEscape]);
 }
 
 export function LogDetailsDrawer(props: {
