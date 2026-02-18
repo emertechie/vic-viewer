@@ -9,6 +9,7 @@ import { useActiveLogProfile } from "@/ui/features/logs/hooks/use-active-log-pro
 import { useColumnConfig } from "@/ui/features/logs/hooks/use-column-config";
 import { useKeyboardRowNavigation } from "@/ui/features/logs/hooks/use-keyboard-row-navigation";
 import { useLogsViewer } from "@/ui/features/logs/hooks/use-logs-viewer";
+import { fieldSelectorsMatch } from "@/ui/features/logs/state/profile-fields";
 import {
   parseLogsSearch,
   refreshRelativeWindow,
@@ -163,11 +164,12 @@ function LogsPage() {
   const onToggleColumnVisibility = React.useCallback(
     (fieldId: string, field?: string, fields?: string[], title?: string) => {
       const currentColumns = columnConfig.columns;
-      const isVisible = currentColumns.some((col) => col.id === fieldId);
+      const selector = { field, fields };
+      const isVisible = currentColumns.some((col) => fieldSelectorsMatch(col, selector));
 
       if (isVisible) {
         columnConfig.save({
-          columns: currentColumns.filter((col) => col.id !== fieldId),
+          columns: currentColumns.filter((col) => !fieldSelectorsMatch(col, selector)),
         });
       } else {
         const newEntry: ColumnConfigEntry = {
@@ -263,11 +265,11 @@ function LogsPage() {
 /** Small toolbar row above the table with the "Columns" button. */
 function LogsTableToolbar(props: { onOpenColumnPicker: () => void }) {
   return (
-    <div className="flex items-center justify-end gap-2 border-b border-border px-3 py-1.5">
+    <div className="flex items-center justify-end gap-2 border-b border-border px-3 py-2">
       <button
         type="button"
         onClick={props.onOpenColumnPicker}
-        className="inline-flex items-center gap-1.5 rounded border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent"
+        className="inline-flex items-center gap-1.5 rounded border border-input px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

@@ -111,6 +111,48 @@ export function getProfileFieldIdentifier(field: ProfileRenderableField): string
     .replace(/[^a-z0-9]+/g, "-");
 }
 
+/**
+ * Returns the normalized list of raw field keys for a field selector.
+ * Allows comparing two selectors that may use `field` vs `fields` differently
+ * (e.g. a logTable column with `id:"time", field:"_time"` vs a logDetails
+ * field with only `field:"_time"` and no explicit id).
+ */
+export function getFieldSelectorKeys(
+  entry: Pick<ProfileRenderableField, "field" | "fields">,
+): string[] {
+  if (entry.fields && entry.fields.length > 0) return entry.fields;
+  if (entry.field) return [entry.field];
+  return [];
+}
+
+/**
+ * Check whether a column config entry matches a field selector by comparing
+ * the underlying raw field keys. This is the correct way to determine
+ * "is this field already shown as a column" because profile table columns
+ * and detail-panel fields may have different `id` values for the same data.
+ */
+export function fieldSelectorsMatch(
+  a: Pick<ProfileRenderableField, "field" | "fields">,
+  b: Pick<ProfileRenderableField, "field" | "fields">,
+): boolean {
+  const keysA = getFieldSelectorKeys(a);
+  const keysB = getFieldSelectorKeys(b);
+  if (keysA.length === 0 || keysB.length === 0) return false;
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k, i) => k === keysB[i]);
+}
+
+/**
+ * Find a visible column that matches the given field selector, regardless
+ * of differing `id` values.
+ */
+export function findMatchingColumn<T extends Pick<ProfileRenderableField, "field" | "fields">>(
+  columns: T[],
+  selector: Pick<ProfileRenderableField, "field" | "fields">,
+): T | undefined {
+  return columns.find((col) => fieldSelectorsMatch(col, selector));
+}
+
 export function resolveCoreFieldDisplayText(options: {
   record: RawLogRecord;
   profile: LogProfile;

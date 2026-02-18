@@ -1,5 +1,6 @@
 import * as React from "react";
-import { EyeOff, GripVertical, Plus, RotateCcw, X } from "lucide-react";
+import { GripVertical, Plus, Trash2, X } from "lucide-react";
+import { Checkbox } from "@/ui/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -7,11 +8,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/ui/dialog";
-import { Switch } from "@/ui/components/ui/switch";
 import type { ColumnConfigEntry, LogProfile } from "../api/types";
 import type { useColumnConfig } from "../hooks/use-column-config";
 import { getDefaultColumns } from "../hooks/use-column-config";
-import { getProfileFieldIdentifier, getProfileFieldLabel } from "../state/profile-fields";
+import {
+  fieldSelectorsMatch,
+  getProfileFieldIdentifier,
+  getProfileFieldLabel,
+} from "../state/profile-fields";
 
 type ColumnConfigHook = ReturnType<typeof useColumnConfig>;
 
@@ -98,9 +102,9 @@ function VisibleColumnItem(props: {
         type="button"
         onClick={() => props.onRemove(props.column.id)}
         className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-        aria-label={`Hide ${props.column.title}`}
+        aria-label={`Remove ${props.column.title}`}
       >
-        <EyeOff className="h-3 w-3" />
+        <X className="h-3 w-3" />
       </button>
     </div>
   );
@@ -175,9 +179,8 @@ function AvailableFieldRow(props: {
   onToggle: (field: AvailableField, visible: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-2 py-1 text-xs">
-      <Switch
-        size="sm"
+    <label className="flex cursor-pointer items-center gap-2 py-1 text-xs">
+      <Checkbox
         checked={props.isVisible}
         onCheckedChange={(checked) => props.onToggle(props.field, checked === true)}
         aria-label={`Toggle ${props.field.title}`}
@@ -186,17 +189,25 @@ function AvailableFieldRow(props: {
         <span className="font-medium text-foreground">{props.field.title}</span>
         <span className="ml-1.5 text-muted-foreground">{formatFieldSource(props.field)}</span>
       </div>
-    </div>
+    </label>
   );
 }
 
 function AvailableFieldsPanel(props: {
   fieldSets: AvailableFieldSet[];
   customColumns: ColumnConfigEntry[];
-  visibleIds: Set<string>;
+  columns: ColumnConfigEntry[];
   onToggle: (field: AvailableField, visible: boolean) => void;
   onAddCustom: (entry: ColumnConfigEntry) => void;
+  onDeleteCustom: (id: string) => void;
 }) {
+  const isFieldVisible = React.useCallback(
+    (field: AvailableField) => {
+      return props.columns.some((col) => fieldSelectorsMatch(col, field));
+    },
+    [props.columns],
+  );
+
   return (
     <div className="space-y-3">
       {props.fieldSets.map((fieldSet) => (
@@ -208,7 +219,7 @@ function AvailableFieldsPanel(props: {
             <AvailableFieldRow
               key={field.id}
               field={field}
-              isVisible={props.visibleIds.has(field.id)}
+              isVisible={isFieldVisible(field)}
               onToggle={props.onToggle}
             />
           ))}
@@ -221,17 +232,28 @@ function AvailableFieldsPanel(props: {
             Custom Columns
           </h4>
           {props.customColumns.map((col) => (
-            <AvailableFieldRow
-              key={col.id}
-              field={{
-                id: col.id,
-                title: col.title,
-                field: col.field,
-                fields: col.fields,
-              }}
-              isVisible={props.visibleIds.has(col.id)}
-              onToggle={props.onToggle}
-            />
+            <div key={col.id} className="flex items-center gap-1">
+              <div className="flex-1">
+                <AvailableFieldRow
+                  field={{
+                    id: col.id,
+                    title: col.title,
+                    field: col.field,
+                    fields: col.fields,
+                  }}
+                  isVisible={isFieldVisible(col)}
+                  onToggle={props.onToggle}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => props.onDeleteCustom(col.id)}
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                aria-label={`Delete ${col.title}`}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           ))}
         </div>
       ) : null}
@@ -364,9 +386,9 @@ export function ColumnPickerModal(props: {
     [localColumns],
   );
 
-  // All custom columns that have ever been added (visible or not) need to appear in RHS
+  // All custom columns that have ever been added (visible or not) need to appear in RHS.
   // Since we only store visible columns, hidden custom columns are lost.
-  // We'll track them in a separate set for the modal session.
+  // We track them in a separate set for the modal session.
   const [allCustomColumns, setAllCustomColumns] =
     React.useState<ColumnConfigEntry[]>(customColumns);
 
@@ -384,11 +406,6 @@ export function ColumnPickerModal(props: {
       return merged;
     });
   }, [localColumns]);
-
-  const visibleIds = React.useMemo(
-    () => new Set(localColumns.map((col) => col.id)),
-    [localColumns],
-  );
 
   const saveColumns = React.useCallback(
     (nextColumns: ColumnConfigEntry[]) => {
@@ -408,9 +425,9 @@ export function ColumnPickerModal(props: {
   const handleToggleField = React.useCallback(
     (field: AvailableField, visible: boolean) => {
       if (visible) {
-        // Add to end of visible list
-        const existing = localColumns.find((c) => c.id === field.id);
-        if (existing) return; // already visible
+        // Don't add duplicates — match by field selector, not ID
+        const existing = localColumns.find((c) => fieldSelectorsMatch(c, field));
+        if (existing) return;
 
         // Check if it's a custom column
         const customMatch = allCustomColumns.find((c) => c.id === field.id);
@@ -422,7 +439,8 @@ export function ColumnPickerModal(props: {
         };
         saveColumns([...localColumns, entry]);
       } else {
-        saveColumns(localColumns.filter((c) => c.id !== field.id));
+        // Remove by field selector match so it works regardless of ID mismatch
+        saveColumns(localColumns.filter((c) => !fieldSelectorsMatch(c, field)));
       }
     },
     [localColumns, allCustomColumns, saveColumns],
@@ -437,7 +455,18 @@ export function ColumnPickerModal(props: {
     [localColumns, saveColumns],
   );
 
+  const handleDeleteCustom = React.useCallback(
+    (id: string) => {
+      setAllCustomColumns((prev) => prev.filter((c) => c.id !== id));
+      // Also remove from visible columns if present
+      saveColumns(localColumns.filter((c) => c.id !== id));
+    },
+    [localColumns, saveColumns],
+  );
+
   const handleReset = React.useCallback(() => {
+    if (!window.confirm("Reset columns to the profile defaults?")) return;
+
     const defaults = getDefaultColumns(profile);
     setLocalColumns(defaults);
     setAllCustomColumns([]);
@@ -453,29 +482,25 @@ export function ColumnPickerModal(props: {
             Drag to reorder visible columns. Toggle fields to show or hide them in the table.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-1 gap-4 overflow-hidden">
+        <div className="flex flex-1 gap-6 overflow-hidden">
           {/* LHS: Visible columns */}
           <div className="flex w-1/2 flex-col overflow-hidden">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Visible Columns ({localColumns.length})
-              </h3>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-                title="Reset to profile defaults"
-              >
-                <RotateCcw className="h-3 w-3" />
-                Reset
-              </button>
-            </div>
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Visible Columns ({localColumns.length})
+            </h3>
             <div className="flex-1 overflow-auto">
               <VisibleColumnsList columns={localColumns} onChange={handleVisibleColumnsChange} />
             </div>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="mt-2 self-start text-xs text-muted-foreground underline transition-colors hover:text-foreground"
+            >
+              Reset to default
+            </button>
           </div>
           {/* RHS: Available fields */}
-          <div className="flex w-1/2 flex-col overflow-hidden border-l border-border pl-4">
+          <div className="flex w-1/2 flex-col overflow-hidden border-l border-border pl-6">
             <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Available Fields
             </h3>
@@ -483,9 +508,10 @@ export function ColumnPickerModal(props: {
               <AvailableFieldsPanel
                 fieldSets={availableFieldSets}
                 customColumns={allCustomColumns}
-                visibleIds={visibleIds}
+                columns={localColumns}
                 onToggle={handleToggleField}
                 onAddCustom={handleAddCustom}
+                onDeleteCustom={handleDeleteCustom}
               />
             </div>
           </div>

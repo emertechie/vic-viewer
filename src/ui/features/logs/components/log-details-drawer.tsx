@@ -53,11 +53,6 @@ export function LogDetailsDrawer(props: {
   const { copyToClipboard } = useClipboard();
   const [wrapRawJson, setWrapRawJson] = React.useState(false);
 
-  const visibleColumnIds = React.useMemo(
-    () => new Set(props.visibleColumns.map((col) => col.id)),
-    [props.visibleColumns],
-  );
-
   const isOpen = Boolean(props.selectedKey);
   const traceId = React.useMemo(() => {
     if (!props.row) {
@@ -133,7 +128,7 @@ export function LogDetailsDrawer(props: {
                   key={fieldSet.id}
                   fieldSet={fieldSet}
                   traceId={traceId}
-                  visibleColumnIds={visibleColumnIds}
+                  visibleColumns={props.visibleColumns}
                   onOpenTrace={props.onOpenTrace}
                   onCopy={copyToClipboard}
                   onToggleColumn={props.onToggleColumn}

@@ -2,6 +2,8 @@ import * as React from "react";
 import { Columns } from "lucide-react";
 import { CopyButton } from "@/ui/components/copy-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/components/ui/tooltip";
+import type { ColumnConfigEntry } from "../api/types";
+import { fieldSelectorsMatch } from "../state/profile-fields";
 import type { DrawerFieldRow, DrawerFieldSet } from "./log-details-field-sets";
 import { LogDetailsCodeBlock } from "./log-details-code-block";
 
@@ -54,13 +56,14 @@ function ToggleColumnButton(props: {
 
 function DetailRow(props: {
   row: DrawerFieldRow;
-  visibleColumnIds: Set<string>;
+  visibleColumns: ColumnConfigEntry[];
   onCopy: CopyHandler;
   onToggleColumn: ToggleColumnHandler;
 }) {
   const displayValue = props.row.value ?? "\u2014";
   const canCopy = Boolean(props.row.value);
-  const isVisible = props.visibleColumnIds.has(props.row.id);
+  // Match by underlying field selector so IDs from different sources still match
+  const isVisible = props.visibleColumns.some((col) => fieldSelectorsMatch(col, props.row));
 
   const handleCopyValue = React.useCallback(async () => {
     if (!props.row.value) {
@@ -87,7 +90,7 @@ function DetailRow(props: {
 export function LogDetailsFieldSetSection(props: {
   fieldSet: DrawerFieldSet;
   traceId: string | null;
-  visibleColumnIds: Set<string>;
+  visibleColumns: ColumnConfigEntry[];
   onOpenTrace: (traceId: string) => void;
   onCopy: CopyHandler;
   onToggleColumn: ToggleColumnHandler;
@@ -118,7 +121,7 @@ export function LogDetailsFieldSetSection(props: {
         <DetailRow
           key={row.id}
           row={row}
-          visibleColumnIds={props.visibleColumnIds}
+          visibleColumns={props.visibleColumns}
           onCopy={props.onCopy}
           onToggleColumn={props.onToggleColumn}
         />
