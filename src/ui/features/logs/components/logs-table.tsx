@@ -60,13 +60,6 @@ export function LogsTable(props: {
   }, [props.visibleColumns]);
   const columnOrder = React.useMemo(() => columns.map((c) => c.id!), [columns]);
 
-  const handleColumnReorder = React.useCallback(
-    (newOrder: string[]) => {
-      props.onColumnReorder?.(newOrder);
-    },
-    [props.onColumnReorder],
-  );
-
   const fakeSequenceMode = React.useMemo(
     () => isFakeSequenceMode(props.rows, props.activeProfile),
     [props.activeProfile, props.rows],
@@ -133,7 +126,7 @@ export function LogsTable(props: {
           <LogsTableHeader
             table={table}
             columnOrder={columnOrder}
-            onColumnReorder={handleColumnReorder}
+            onColumnReorder={props.onColumnReorder}
           />
           <LogsTableBody
             virtualizer={virtualizer}

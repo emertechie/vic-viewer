@@ -57,7 +57,7 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
 export function LogsTableHeader(props: {
   table: Table<LogRow>;
   columnOrder: string[];
-  onColumnReorder: (newOrder: string[]) => void;
+  onColumnReorder?: (newOrder: string[]) => void;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -73,7 +73,7 @@ export function LogsTableHeader(props: {
       const newIndex = props.columnOrder.indexOf(String(over.id));
       if (oldIndex === -1 || newIndex === -1) return;
 
-      props.onColumnReorder(arrayMove(props.columnOrder, oldIndex, newIndex));
+      props.onColumnReorder?.(arrayMove(props.columnOrder, oldIndex, newIndex));
     },
     [props.columnOrder, props.onColumnReorder],
   );
