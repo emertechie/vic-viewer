@@ -6,7 +6,7 @@ export type QuickFilterSelector = {
   fields?: string[];
 };
 
-export type QuickFilterOperator = string;
+export type QuickFilterOperator = "=" | "!=";
 
 export type QuickFilterRequest = {
   selector: QuickFilterSelector;
@@ -26,10 +26,10 @@ export type LogsQuickFilterService = {
 };
 
 type CreateLogsQuickFilterServiceOptions = {
-  formatters?: Record<string, QuickFilterOperatorFormatter>;
+  formatters?: Partial<Record<QuickFilterOperator, QuickFilterOperatorFormatter>>;
 };
 
-const DEFAULT_OPERATOR_FORMATTERS: Record<string, QuickFilterOperatorFormatter> = {
+const DEFAULT_OPERATOR_FORMATTERS: Record<QuickFilterOperator, QuickFilterOperatorFormatter> = {
   "=": ({ field, value }) => `${field}:${value}`,
   "!=": ({ field, value }) => `!${field}:${value}`,
 };
@@ -61,13 +61,10 @@ function selectCandidateFields(selector: QuickFilterSelector): string[] {
 function buildFilterExpression(options: {
   selector: QuickFilterSelector;
   value: string;
-  operator: string;
-  formatters: Record<string, QuickFilterOperatorFormatter>;
+  operator: QuickFilterOperator;
+  formatters: Record<QuickFilterOperator, QuickFilterOperatorFormatter>;
 }): string | null {
   const formatter = options.formatters[options.operator];
-  if (!formatter) {
-    return null;
-  }
 
   const fields = selectCandidateFields(options.selector);
   if (fields.length === 0) {

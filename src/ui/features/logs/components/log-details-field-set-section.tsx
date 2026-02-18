@@ -21,6 +21,10 @@ type QuickFilterHandler = (
   value: string,
 ) => void;
 
+function hasFieldSelector(row: DrawerFieldRow): boolean {
+  return Boolean(row.field) || Boolean(row.fields && row.fields.length > 0);
+}
+
 function ToggleColumnButton(props: {
   row: DrawerFieldRow;
   isVisible: boolean;
@@ -106,27 +110,26 @@ function DetailRow(props: {
   onToggleColumn: ToggleColumnHandler;
   onApplyQuickFilter: QuickFilterHandler;
 }) {
-  const displayValue = props.row.value ?? "\u2014";
-  const canCopy = Boolean(props.row.value);
-  const canApplyQuickFilter =
-    canCopy &&
-    (Boolean(props.row.field) || Boolean(props.row.fields && props.row.fields.length > 0));
+  const { row, visibleColumns, onCopy, onToggleColumn, onApplyQuickFilter } = props;
+  const displayValue = row.value ?? "\u2014";
+  const canCopy = Boolean(row.value);
+  const canApplyQuickFilter = canCopy && hasFieldSelector(row);
   // Match by underlying field selector so IDs from different sources still match
-  const isVisible = props.visibleColumns.some((col) => fieldSelectorsMatch(col, props.row));
+  const isVisible = visibleColumns.some((col) => fieldSelectorsMatch(col, row));
 
   const handleCopyValue = React.useCallback(async () => {
-    if (!props.row.value) {
+    if (!row.value) {
       return;
     }
 
-    await props.onCopy(props.row.value);
-  }, [props.onCopy, props.row.value]);
+    await onCopy(row.value);
+  }, [onCopy, row.value]);
 
   return (
     <div className="grid grid-cols-[100px_1fr_auto] items-start gap-2 border-b border-border/40 py-1.5 text-xs">
-      <span className="text-muted-foreground">{props.row.label}</span>
-      {props.row.valueType === "sql" && props.row.value ? (
-        <LogDetailsCodeBlock code={props.row.value} language="sql" className="max-h-48" />
+      <span className="text-muted-foreground">{row.label}</span>
+      {row.valueType === "sql" && row.value ? (
+        <LogDetailsCodeBlock code={row.value} language="sql" className="max-h-48" />
       ) : (
         <span className="break-all text-foreground">{displayValue}</span>
       )}
@@ -134,19 +137,19 @@ function DetailRow(props: {
         <QuickFilterButton
           label="="
           operator="="
-          row={props.row}
+          row={row}
           disabled={!canApplyQuickFilter}
-          onApplyQuickFilter={props.onApplyQuickFilter}
+          onApplyQuickFilter={onApplyQuickFilter}
         />
         <QuickFilterButton
           label="!="
           operator="!="
-          row={props.row}
+          row={row}
           disabled={!canApplyQuickFilter}
-          onApplyQuickFilter={props.onApplyQuickFilter}
+          onApplyQuickFilter={onApplyQuickFilter}
         />
-        <CopyButton label={props.row.label} disabled={!canCopy} onCopy={handleCopyValue} />
-        <ToggleColumnButton row={props.row} isVisible={isVisible} onToggle={props.onToggleColumn} />
+        <CopyButton label={row.label} disabled={!canCopy} onCopy={handleCopyValue} />
+        <ToggleColumnButton row={row} isVisible={isVisible} onToggle={onToggleColumn} />
       </div>
     </div>
   );

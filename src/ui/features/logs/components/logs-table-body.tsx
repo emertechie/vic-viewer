@@ -24,13 +24,15 @@ function CellQuickFilterButton(props: {
   value: string;
   onApplyQuickFilter: QuickFilterHandler;
 }) {
+  const { onApplyQuickFilter, operator, selector, value } = props;
+
   const onClick = React.useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      props.onApplyQuickFilter(props.operator, props.selector, props.value);
+      onApplyQuickFilter(operator, selector, value);
     },
-    [props],
+    [onApplyQuickFilter, operator, selector, value],
   );
 
   const onMouseDown = React.useCallback((event: React.MouseEvent<HTMLSpanElement>) => {
@@ -54,6 +56,10 @@ type ColumnQuickFilterMeta = {
   field?: string;
   fields?: string[];
 };
+
+function hasFieldSelector(field?: string, fields?: string[]): boolean {
+  return Boolean(field) || Boolean(fields && fields.length > 0);
+}
 
 function resolveMessageForRow(row: LogRow, activeProfile: LogProfile): string {
   return (
@@ -83,10 +89,10 @@ function getSequenceCheckStatus(
 
   const currentSequence = extractLogSequence(resolveMessageForRow(current, activeProfile));
   const aboveSequence = hasAbove
-    ? extractLogSequence(resolveMessageForRow(rows[index - 1] as LogRow, activeProfile))
+    ? extractLogSequence(resolveMessageForRow(rows[index - 1]!, activeProfile))
     : null;
   const belowSequence = hasBelow
-    ? extractLogSequence(resolveMessageForRow(rows[index + 1] as LogRow, activeProfile))
+    ? extractLogSequence(resolveMessageForRow(rows[index + 1]!, activeProfile))
     : null;
 
   if (
@@ -186,12 +192,13 @@ export function LogsTableBody(props: {
           height: `${virtualRow.size}px`,
           width: `calc(var(--table-width) * 1px)`,
         };
+        const onSelectRow = props.onSelectRow;
 
         const rowCells = row.getVisibleCells().map((cell) => {
           const meta = cell.column.columnDef.meta as ColumnQuickFilterMeta | undefined;
           const field = meta?.field;
           const fields = meta?.fields;
-          const hasSelector = Boolean(field) || Boolean(fields && fields.length > 0);
+          const hasSelector = hasFieldSelector(field, fields);
           const value = hasSelector
             ? resolveFieldDisplayText(row.original.raw, {
                 field,
@@ -235,12 +242,12 @@ export function LogsTableBody(props: {
           );
         });
 
-        if (props.onSelectRow) {
+        if (onSelectRow) {
           return (
             <button
               key={row.id}
               type="button"
-              onClick={() => props.onSelectRow?.(row.original)}
+              onClick={() => onSelectRow(row.original)}
               className={`appearance-none text-left ${rowClassName}`}
               style={rowStyle}
             >

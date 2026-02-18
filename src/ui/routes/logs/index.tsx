@@ -27,6 +27,8 @@ export const Route = createFileRoute("/logs/")({
   component: LogsPage,
 });
 
+const LIVE_REFRESH_INTERVAL_MS = 5000;
+
 function getAdjacentRowKey(rows: LogRow[], selectedRowIndex: number, step: -1 | 1): string | null {
   const nextRow = rows[selectedRowIndex + step];
   return nextRow ? nextRow.key : null;
@@ -102,11 +104,12 @@ function LogsPage() {
 
   const onApplySearch = React.useCallback(
     (nextSearch: LogsSearch) => {
+      const nextSearchWithoutSelection = {
+        ...nextSearch,
+        selected: undefined,
+      };
       navigate({
-        search: () => ({
-          ...nextSearch,
-          selected: undefined,
-        }),
+        search: () => nextSearchWithoutSelection,
       });
     },
     [navigate],
@@ -138,7 +141,7 @@ function LogsPage() {
         search: () => refreshed,
         replace: true,
       });
-    }, 5000);
+    }, LIVE_REFRESH_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
@@ -211,12 +214,13 @@ function LogsPage() {
         selector,
         value,
       });
+      const nextSearchWithoutSelection = {
+        ...nextSearch,
+        selected: undefined,
+      };
 
       navigate({
-        search: () => ({
-          ...nextSearch,
-          selected: undefined,
-        }),
+        search: () => nextSearchWithoutSelection,
       });
     },
     [navigate, quickFilterService, search],

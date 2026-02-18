@@ -23,29 +23,24 @@ function fromLocalDateTimeValue(localDateTime: string): string {
   return new Date(localDateTime).toISOString();
 }
 
-function normalizeQuery(value: string): string {
-  return normalizeLogsQuery(value);
-}
-
 export function LogsQueryControls(props: {
   search: LogsSearch;
   onApplySearch: (nextSearch: LogsSearch) => void;
   onToggleLive: (liveMode: "0" | "1") => void;
 }) {
-  const [queryText, setQueryText] = React.useState(props.search.q);
-  const [range, setRange] = React.useState<LogsRange>(props.search.range);
-  const [absoluteStart, setAbsoluteStart] = React.useState(
-    toLocalDateTimeValue(props.search.start),
-  );
-  const [absoluteEnd, setAbsoluteEnd] = React.useState(toLocalDateTimeValue(props.search.end));
-  const appliedAbsoluteStart = toLocalDateTimeValue(props.search.start);
-  const appliedAbsoluteEnd = toLocalDateTimeValue(props.search.end);
+  const { search, onApplySearch, onToggleLive } = props;
+  const [queryText, setQueryText] = React.useState(search.q);
+  const [range, setRange] = React.useState<LogsRange>(search.range);
+  const [absoluteStart, setAbsoluteStart] = React.useState(toLocalDateTimeValue(search.start));
+  const [absoluteEnd, setAbsoluteEnd] = React.useState(toLocalDateTimeValue(search.end));
+  const appliedAbsoluteStart = toLocalDateTimeValue(search.start);
+  const appliedAbsoluteEnd = toLocalDateTimeValue(search.end);
   const hasUnappliedChanges = React.useMemo(() => {
-    if (normalizeQuery(queryText) !== normalizeQuery(props.search.q)) {
+    if (normalizeLogsQuery(queryText) !== normalizeLogsQuery(search.q)) {
       return true;
     }
 
-    if (range !== props.search.range) {
+    if (range !== search.range) {
       return true;
     }
 
@@ -59,23 +54,23 @@ export function LogsQueryControls(props: {
     absoluteStart,
     appliedAbsoluteEnd,
     appliedAbsoluteStart,
-    props.search.q,
-    props.search.range,
+    search.q,
+    search.range,
     queryText,
     range,
   ]);
 
   React.useEffect(() => {
-    setQueryText(props.search.q);
-    setRange(props.search.range);
-    setAbsoluteStart(toLocalDateTimeValue(props.search.start));
-    setAbsoluteEnd(toLocalDateTimeValue(props.search.end));
-  }, [props.search.end, props.search.q, props.search.range, props.search.start]);
+    setQueryText(search.q);
+    setRange(search.range);
+    setAbsoluteStart(toLocalDateTimeValue(search.start));
+    setAbsoluteEnd(toLocalDateTimeValue(search.end));
+  }, [search.end, search.q, search.range, search.start]);
 
   const doApplySearch = React.useCallback(
     (nextRange: LogsRange, nextQueryText: string) => {
       const trimmedQuery = nextQueryText.trim();
-      const nextQuery = normalizeQuery(nextQueryText);
+      const nextQuery = normalizeLogsQuery(nextQueryText);
       if (!trimmedQuery && nextQueryText !== WILDCARD_QUERY) {
         setQueryText(WILDCARD_QUERY);
       }
@@ -85,8 +80,8 @@ export function LogsQueryControls(props: {
           return;
         }
 
-        props.onApplySearch({
-          ...props.search,
+        onApplySearch({
+          ...search,
           q: nextQuery,
           range: "absolute",
           start: fromLocalDateTimeValue(absoluteStart),
@@ -96,15 +91,15 @@ export function LogsQueryControls(props: {
       }
 
       const window = buildRelativeWindow(nextRange as RelativeRange, new Date());
-      props.onApplySearch({
-        ...props.search,
+      onApplySearch({
+        ...search,
         q: nextQuery,
         range: nextRange,
         start: window.start,
         end: window.end,
       });
     },
-    [absoluteEnd, absoluteStart, props],
+    [absoluteEnd, absoluteStart, onApplySearch, search],
   );
 
   const applySearch = React.useCallback(
@@ -220,14 +215,14 @@ export function LogsQueryControls(props: {
       ) : null}
       <button
         type="button"
-        onClick={() => props.onToggleLive(props.search.live === "1" ? "0" : "1")}
+        onClick={() => onToggleLive(search.live === "1" ? "0" : "1")}
         className={`h-9 rounded-md border px-3 text-sm ${
-          props.search.live === "1"
+          search.live === "1"
             ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
             : "border-input bg-card text-muted-foreground"
         }`}
       >
-        {props.search.live === "1" ? "Live On" : "Live Off"}
+        {search.live === "1" ? "Live On" : "Live Off"}
       </button>
       {hasUnappliedChanges ? (
         <TooltipProvider delayDuration={300}>
