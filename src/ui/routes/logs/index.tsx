@@ -263,7 +263,7 @@ function LogsPage() {
 /** Small toolbar row above the table with the "Columns" button. */
 function LogsTableToolbar(props: { onOpenColumnPicker: () => void }) {
   return (
-    <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+    <div className="flex items-center justify-end gap-2 border-b border-border px-3 py-1.5">
       <button
         type="button"
         onClick={props.onOpenColumnPicker}
