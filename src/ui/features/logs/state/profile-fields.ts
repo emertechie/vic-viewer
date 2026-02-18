@@ -142,17 +142,6 @@ export function fieldSelectorsMatch(
   return keysA.every((k, i) => k === keysB[i]);
 }
 
-/**
- * Find a visible column that matches the given field selector, regardless
- * of differing `id` values.
- */
-export function findMatchingColumn<T extends Pick<ProfileRenderableField, "field" | "fields">>(
-  columns: T[],
-  selector: Pick<ProfileRenderableField, "field" | "fields">,
-): T | undefined {
-  return columns.find((col) => fieldSelectorsMatch(col, selector));
-}
-
 export function resolveCoreFieldDisplayText(options: {
   record: RawLogRecord;
   profile: LogProfile;
