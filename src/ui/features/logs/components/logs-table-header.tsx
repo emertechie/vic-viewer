@@ -45,8 +45,11 @@ function ColumnResizeHandle(props: { header: Header<LogRow, unknown> }) {
   );
 }
 
-function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
-  const { header } = props;
+function SortableHeaderCell(props: {
+  header: Header<LogRow, unknown>;
+  isAnyColumnResizing: boolean;
+}) {
+  const { header, isAnyColumnResizing } = props;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: header.id,
   });
@@ -69,7 +72,11 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab truncate pl-2 pr-1 py-2 touch-none active:cursor-grabbing"
+        className={`truncate pl-2 pr-1 py-2 touch-none ${
+          isAnyColumnResizing
+            ? "pointer-events-none cursor-col-resize"
+            : "cursor-grab active:cursor-grabbing"
+        }`}
       >
         {flexRender(header.column.columnDef.header, header.getContext())}
       </div>
@@ -85,6 +92,8 @@ export function LogsTableHeader(props: {
   /** Ref to the scroll container — overflow is locked while dragging to prevent scroll. */
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }) {
+  const isAnyColumnResizing = props.table.getState().columnSizingInfo.isResizingColumn !== false;
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -135,7 +144,11 @@ export function LogsTableHeader(props: {
             .getHeaderGroups()
             .map((headerGroup) =>
               headerGroup.headers.map((header) => (
-                <SortableHeaderCell key={header.id} header={header} />
+                <SortableHeaderCell
+                  key={header.id}
+                  header={header}
+                  isAnyColumnResizing={isAnyColumnResizing}
+                />
               )),
             )}
         </div>
