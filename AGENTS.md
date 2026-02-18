@@ -9,7 +9,7 @@ For more context, make sure you read:
 
 - After code changes, run `npm run typecheck` to ensure no new type errors introduced
 - Always run `npm run format` to format new or updated files
-- Add code comments when the purpose of the some pirce of code or logic may not be immediately clear or be easily understood by future human readers. If unsure, err on the side of adding comments
+- Add code comments when the purpose of the some piece of code or logic may not be immediately clear or be easily understood by future human readers. If unsure, err on the side of adding comments
 - For schemas/types used by both server and client, define the canonical Zod schema in `src/shared/schemas/*` and import/re-export it from server/UI modules instead of duplicating definitions.
 - If you are making commits, make commits at logical boundaries (e.g. after completing a step or a coherent group of related steps) so that a human reviewer can follow the progress in the git history. Don't batch all changes into a single commit at the end.
 
