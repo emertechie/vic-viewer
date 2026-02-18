@@ -237,7 +237,6 @@ export function LogsTable(props: {
             fakeSequenceMode={fakeSequenceMode}
             selectedRowKey={props.selectedRowKey}
             onSelectRow={props.onSelectRow}
-            isResizing={isResizing}
           />
         </div>
       </div>

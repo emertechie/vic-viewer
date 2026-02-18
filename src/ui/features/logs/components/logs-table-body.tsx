@@ -108,12 +108,7 @@ export function isFakeSequenceMode(rows: LogRow[], activeProfile: LogProfile): b
   );
 }
 
-/**
- * Inner body content extracted so it can be memoized during column resizing.
- * During resize, only CSS variables change (applied to the parent), so the
- * body DOM doesn't need to re-render.
- */
-const LogsTableBodyInner = React.memo(function LogsTableBodyInner(props: {
+export function LogsTableBody(props: {
   virtualizer: Virtualizer<HTMLDivElement, Element>;
   rowModel: RowModel<LogRow>;
   rows: LogRow[];
@@ -176,29 +171,5 @@ const LogsTableBodyInner = React.memo(function LogsTableBodyInner(props: {
         );
       })}
     </div>
-  );
-});
-
-export function LogsTableBody(props: {
-  virtualizer: Virtualizer<HTMLDivElement, Element>;
-  rowModel: RowModel<LogRow>;
-  rows: LogRow[];
-  activeProfile: LogProfile;
-  fakeSequenceMode: boolean;
-  selectedRowKey?: string;
-  onSelectRow?: (row: LogRow) => void;
-  /** True while a column resize drag is in progress — used to skip re-renders. */
-  isResizing: boolean;
-}) {
-  return (
-    <LogsTableBodyInner
-      virtualizer={props.virtualizer}
-      rowModel={props.rowModel}
-      rows={props.rows}
-      activeProfile={props.activeProfile}
-      fakeSequenceMode={props.fakeSequenceMode}
-      selectedRowKey={props.selectedRowKey}
-      onSelectRow={props.onSelectRow}
-    />
   );
 }
