@@ -37,6 +37,25 @@ function DrawerNavigationButton(props: {
   );
 }
 
+function useEscapeKey(enabled: boolean, onEscape: () => void) {
+  React.useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onEscape();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [enabled, onEscape]);
+}
+
 export function LogDetailsDrawer(props: {
   row: LogRow | null;
   activeProfile: LogProfile;
@@ -54,6 +73,9 @@ export function LogDetailsDrawer(props: {
   const [wrapRawJson, setWrapRawJson] = React.useState(false);
 
   const isOpen = Boolean(props.selectedKey);
+
+  useEscapeKey(isOpen, props.onClose);
+
   const traceId = React.useMemo(() => {
     if (!props.row) {
       return null;
