@@ -1,4 +1,21 @@
 import * as React from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Trash2, X } from "lucide-react";
 import {
   AlertDialog,
@@ -80,31 +97,33 @@ function formatFieldSource(entry: { field?: string; fields?: string[] }): string
   return "";
 }
 
-// ── LHS: Visible columns with drag-drop reorder ─────────────────────
+// ── LHS: Visible columns with dnd-kit sortable reorder ───────────────
 
-function VisibleColumnItem(props: {
-  column: ColumnConfigEntry;
-  index: number;
-  onRemove: (id: string) => void;
-  onDragStart: (index: number) => void;
-  onDragOver: (index: number) => void;
-  onDragEnd: () => void;
-  isDragTarget: boolean;
-}) {
+function SortableColumnItem(props: { column: ColumnConfigEntry; onRemove: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } =
+    useSortable({ id: props.column.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
     <div
-      draggable
-      onDragStart={() => props.onDragStart(props.index)}
-      onDragOver={(e) => {
-        e.preventDefault();
-        props.onDragOver(props.index);
-      }}
-      onDragEnd={props.onDragEnd}
-      className={`flex items-center gap-2 rounded border px-2 py-1.5 text-xs transition-colors ${
-        props.isDragTarget ? "border-primary/50 bg-primary/5" : "border-border bg-card"
-      }`}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1.5 text-xs"
     >
-      <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab text-muted-foreground" />
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        {...listeners}
+        className="shrink-0 cursor-grab touch-none text-muted-foreground hover:text-foreground"
+        aria-label={`Drag to reorder ${props.column.title}`}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
       <div className="min-w-0 flex-1">
         <span className="font-medium text-foreground">{props.column.title}</span>
         <span className="ml-1.5 text-muted-foreground">{formatFieldSource(props.column)}</span>
@@ -125,8 +144,12 @@ function VisibleColumnsList(props: {
   columns: ColumnConfigEntry[];
   onChange: (columns: ColumnConfigEntry[]) => void;
 }) {
-  const [dragIndex, setDragIndex] = React.useState<number | null>(null);
-  const [dropIndex, setDropIndex] = React.useState<number | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const columnIds = React.useMemo(() => props.columns.map((c) => c.id), [props.columns]);
 
   const handleRemove = React.useCallback(
     (id: string) => {
@@ -135,26 +158,19 @@ function VisibleColumnsList(props: {
     [props.columns, props.onChange],
   );
 
-  const handleDragStart = React.useCallback((index: number) => {
-    setDragIndex(index);
-  }, []);
+  const handleDragEnd = React.useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-  const handleDragOver = React.useCallback((index: number) => {
-    setDropIndex(index);
-  }, []);
+      const oldIndex = props.columns.findIndex((c) => c.id === active.id);
+      const newIndex = props.columns.findIndex((c) => c.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
 
-  const handleDragEnd = React.useCallback(() => {
-    if (dragIndex !== null && dropIndex !== null && dragIndex !== dropIndex) {
-      const next = [...props.columns];
-      const [moved] = next.splice(dragIndex, 1);
-      if (moved) {
-        next.splice(dropIndex, 0, moved);
-        props.onChange(next);
-      }
-    }
-    setDragIndex(null);
-    setDropIndex(null);
-  }, [dragIndex, dropIndex, props.columns, props.onChange]);
+      props.onChange(arrayMove(props.columns, oldIndex, newIndex));
+    },
+    [props.columns, props.onChange],
+  );
 
   if (props.columns.length === 0) {
     return (
@@ -165,20 +181,15 @@ function VisibleColumnsList(props: {
   }
 
   return (
-    <div className="space-y-1" onDragOver={(e) => e.preventDefault()}>
-      {props.columns.map((col, index) => (
-        <VisibleColumnItem
-          key={col.id}
-          column={col}
-          index={index}
-          onRemove={handleRemove}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          isDragTarget={dropIndex === index && dragIndex !== index}
-        />
-      ))}
-    </div>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={columnIds} strategy={verticalListSortingStrategy}>
+        <div className="space-y-1">
+          {props.columns.map((col) => (
+            <SortableColumnItem key={col.id} column={col} onRemove={handleRemove} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
   );
 }
 
