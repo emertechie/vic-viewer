@@ -163,6 +163,16 @@ function LogsPage() {
     [columnConfig],
   );
 
+  const onColumnResize = React.useCallback(
+    (columnId: string, width: number) => {
+      const updated = columnConfig.columns.map((col) =>
+        col.id === columnId ? { ...col, width } : col,
+      );
+      columnConfig.save({ columns: updated });
+    },
+    [columnConfig],
+  );
+
   const onToggleColumnVisibility = React.useCallback(
     (fieldId: string, field?: string, fields?: string[], title?: string) => {
       const currentColumns = columnConfig.columns;
@@ -230,6 +240,7 @@ function LogsPage() {
                 onLoadNewer={viewer.loadNewer}
                 onSelectRow={onSelectRow}
                 onColumnReorder={onColumnReorder}
+                onColumnResize={onColumnResize}
               />
             </div>
             {columnPickerOpen ? (

@@ -15,18 +15,46 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { flexRender, type Header, type Table } from "@tanstack/react-table";
 import type { LogRow } from "../api/types";
+import { getColumnSizeVarName } from "./logs-table-sizing";
 
-function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
+function setContainerScrollLock(
+  containerRef: React.RefObject<HTMLElement | null> | undefined,
+  isLocked: boolean,
+): void {
+  const element = containerRef?.current;
+  if (!element) {
+    return;
+  }
+
+  element.style.overflow = isLocked ? "hidden" : "";
+}
+
+function ColumnResizeHandle(props: { header: Header<LogRow, unknown> }) {
   const { header } = props;
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: resize handle uses pointer drag interactions.
+    <div
+      onMouseDown={header.getResizeHandler()}
+      onTouchStart={header.getResizeHandler()}
+      className="absolute inset-y-0 -right-1 z-20 w-[9px] cursor-col-resize select-none touch-none before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border"
+    />
+  );
+}
+
+function SortableHeaderCell(props: {
+  header: Header<LogRow, unknown>;
+  isAnyColumnResizing: boolean;
+}) {
+  const { header, isAnyColumnResizing } = props;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: header.id,
   });
 
   const style: React.CSSProperties = {
-    width: header.getSize(),
+    width: `calc(var(${getColumnSizeVarName(header.column.id)}) * 1px)`,
     // Only apply horizontal translation — ignore scale to prevent stretching
     transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition,
@@ -37,12 +65,21 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      className="shrink-0 cursor-grab truncate px-1 touch-none active:cursor-grabbing"
+      className="relative shrink-0 border-border/50 first:border-l"
       style={style}
     >
-      {flexRender(header.column.columnDef.header, header.getContext())}
+      <div
+        {...attributes}
+        {...listeners}
+        className={`truncate pl-2 pr-1 py-2 touch-none ${
+          isAnyColumnResizing
+            ? "pointer-events-none cursor-col-resize"
+            : "cursor-grab active:cursor-grabbing"
+        }`}
+      >
+        {flexRender(header.column.columnDef.header, header.getContext())}
+      </div>
+      <ColumnResizeHandle header={header} />
     </div>
   );
 }
@@ -54,21 +91,24 @@ export function LogsTableHeader(props: {
   /** Ref to the scroll container — overflow is locked while dragging to prevent scroll. */
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }) {
+  const isAnyColumnResizing = props.table.getState().columnSizingInfo.isResizingColumn !== false;
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  React.useEffect(() => {
+    return () => setContainerScrollLock(props.scrollContainerRef, false);
+  }, [props.scrollContainerRef]);
+
   const handleDragStart = React.useCallback(() => {
-    const el = props.scrollContainerRef?.current;
-    if (el) el.style.overflow = "hidden";
+    setContainerScrollLock(props.scrollContainerRef, true);
   }, [props.scrollContainerRef]);
 
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
-      // Restore scroll on the container
-      const el = props.scrollContainerRef?.current;
-      if (el) el.style.overflow = "";
+      setContainerScrollLock(props.scrollContainerRef, false);
 
       const { active, over } = event;
       if (!over || active.id === over.id) return;
@@ -83,8 +123,7 @@ export function LogsTableHeader(props: {
   );
 
   const handleDragCancel = React.useCallback(() => {
-    const el = props.scrollContainerRef?.current;
-    if (el) el.style.overflow = "";
+    setContainerScrollLock(props.scrollContainerRef, false);
   }, [props.scrollContainerRef]);
 
   return (
@@ -97,14 +136,18 @@ export function LogsTableHeader(props: {
     >
       <SortableContext items={props.columnOrder} strategy={horizontalListSortingStrategy}>
         <div
-          className="sticky top-0 z-10 flex border-b border-border bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"
-          style={{ width: "100%" }}
+          className="sticky top-0 z-10 flex border-b border-border bg-muted px-3 text-xs font-medium text-muted-foreground"
+          style={{ width: `calc(var(--table-width) * 1px)` }}
         >
           {props.table
             .getHeaderGroups()
             .map((headerGroup) =>
               headerGroup.headers.map((header) => (
-                <SortableHeaderCell key={header.id} header={header} />
+                <SortableHeaderCell
+                  key={header.id}
+                  header={header}
+                  isAnyColumnResizing={isAnyColumnResizing}
+                />
               )),
             )}
         </div>
