@@ -38,8 +38,8 @@ function ToggleColumnButton(props: {
           onClick={handleClick}
           className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
             props.isVisible
-              ? "border-primary/60 bg-primary/10 text-primary"
-              : "border-input text-muted-foreground hover:text-foreground"
+              ? "border-input bg-muted text-foreground"
+              : "border-input bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
           }`}
           aria-label={
             props.isVisible ? `Hide ${props.row.label} column` : `Show ${props.row.label} as column`
@@ -131,7 +131,6 @@ function DetailRow(props: {
         <span className="break-all text-foreground">{displayValue}</span>
       )}
       <div className="flex items-start gap-1">
-        <ToggleColumnButton row={props.row} isVisible={isVisible} onToggle={props.onToggleColumn} />
         <QuickFilterButton
           label="="
           operator="="
@@ -146,6 +145,7 @@ function DetailRow(props: {
           disabled={!canApplyQuickFilter}
           onApplyQuickFilter={props.onApplyQuickFilter}
         />
+        <ToggleColumnButton row={props.row} isVisible={isVisible} onToggle={props.onToggleColumn} />
         <CopyButton label={props.row.label} disabled={!canCopy} onCopy={handleCopyValue} />
       </div>
     </div>
