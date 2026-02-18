@@ -127,6 +127,7 @@ export function LogsTable(props: {
             table={table}
             columnOrder={columnOrder}
             onColumnReorder={props.onColumnReorder}
+            scrollContainerRef={containerRef}
           />
           <LogsTableBody
             virtualizer={virtualizer}

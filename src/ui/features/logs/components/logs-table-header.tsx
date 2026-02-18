@@ -17,39 +17,32 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { flexRender, type Header, type Table } from "@tanstack/react-table";
-import { GripVertical } from "lucide-react";
 import type { LogRow } from "../api/types";
 
 function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   const { header } = props;
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } =
-    useSortable({ id: header.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: header.id,
+  });
 
   const style: React.CSSProperties = {
     width: header.getSize(),
-    transform: CSS.Transform.toString(transform),
+    // Only apply horizontal translation — ignore scale to prevent stretching
+    transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition,
+    // Lift the dragged column above siblings
+    zIndex: isDragging ? 1 : undefined,
   };
 
   return (
     <div
       ref={setNodeRef}
       {...attributes}
-      className="group flex shrink-0 items-center gap-0.5 px-1"
+      {...listeners}
+      className="shrink-0 cursor-grab truncate px-1 touch-none active:cursor-grabbing"
       style={style}
     >
-      <button
-        ref={setActivatorNodeRef}
-        type="button"
-        {...listeners}
-        className="shrink-0 cursor-grab touch-none text-muted-foreground/40 opacity-0 transition-opacity hover:text-muted-foreground group-hover:opacity-100"
-        aria-label={`Drag to reorder ${String(header.column.columnDef.header)}`}
-      >
-        <GripVertical className="h-3 w-3" />
-      </button>
-      <span className="truncate">
-        {flexRender(header.column.columnDef.header, header.getContext())}
-      </span>
+      {flexRender(header.column.columnDef.header, header.getContext())}
     </div>
   );
 }
@@ -58,14 +51,25 @@ export function LogsTableHeader(props: {
   table: Table<LogRow>;
   columnOrder: string[];
   onColumnReorder?: (newOrder: string[]) => void;
+  /** Ref to the scroll container — overflow is locked while dragging to prevent scroll. */
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const handleDragStart = React.useCallback(() => {
+    const el = props.scrollContainerRef?.current;
+    if (el) el.style.overflow = "hidden";
+  }, [props.scrollContainerRef]);
+
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
+      // Restore scroll on the container
+      const el = props.scrollContainerRef?.current;
+      if (el) el.style.overflow = "";
+
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -75,11 +79,22 @@ export function LogsTableHeader(props: {
 
       props.onColumnReorder?.(arrayMove(props.columnOrder, oldIndex, newIndex));
     },
-    [props.columnOrder, props.onColumnReorder],
+    [props.columnOrder, props.onColumnReorder, props.scrollContainerRef],
   );
 
+  const handleDragCancel = React.useCallback(() => {
+    const el = props.scrollContainerRef?.current;
+    if (el) el.style.overflow = "";
+  }, [props.scrollContainerRef]);
+
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
       <SortableContext items={props.columnOrder} strategy={horizontalListSortingStrategy}>
         <div
           className="sticky top-0 z-10 flex border-b border-border bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"
