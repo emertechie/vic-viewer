@@ -35,13 +35,12 @@ function ColumnResizeHandle(props: { header: Header<LogRow, unknown> }) {
   const { header } = props;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: resize handle uses pointer drag interactions.
     <div
       onDoubleClick={() => header.column.resetSize()}
       onMouseDown={header.getResizeHandler()}
       onTouchStart={header.getResizeHandler()}
-      className={`absolute top-0 right-0 z-20 h-full w-[3px] cursor-col-resize select-none touch-none ${
-        header.column.getIsResizing() ? "bg-primary" : "hover:bg-primary/50 active:bg-primary"
-      }`}
+      className="absolute inset-y-0 -right-1 z-20 w-[9px] cursor-col-resize select-none touch-none before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border"
     />
   );
 }
@@ -70,7 +69,7 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab truncate px-1 touch-none active:cursor-grabbing"
+        className="cursor-grab truncate pl-2 pr-1 py-2 touch-none active:cursor-grabbing"
       >
         {flexRender(header.column.columnDef.header, header.getContext())}
       </div>
@@ -129,7 +128,7 @@ export function LogsTableHeader(props: {
     >
       <SortableContext items={props.columnOrder} strategy={horizontalListSortingStrategy}>
         <div
-          className="sticky top-0 z-10 flex border-b border-border bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"
+          className="sticky top-0 z-10 flex border-b border-border bg-muted px-3 text-xs font-medium text-muted-foreground"
           style={{ width: `calc(var(--table-width) * 1px)` }}
         >
           {props.table
