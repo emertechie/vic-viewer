@@ -145,8 +145,8 @@ function DetailRow(props: {
           disabled={!canApplyQuickFilter}
           onApplyQuickFilter={props.onApplyQuickFilter}
         />
-        <ToggleColumnButton row={props.row} isVisible={isVisible} onToggle={props.onToggleColumn} />
         <CopyButton label={props.row.label} disabled={!canCopy} onCopy={handleCopyValue} />
+        <ToggleColumnButton row={props.row} isVisible={isVisible} onToggle={props.onToggleColumn} />
       </div>
     </div>
   );
