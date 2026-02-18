@@ -37,7 +37,6 @@ function ColumnResizeHandle(props: { header: Header<LogRow, unknown> }) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: resize handle uses pointer drag interactions.
     <div
-      onDoubleClick={() => header.column.resetSize()}
       onMouseDown={header.getResizeHandler()}
       onTouchStart={header.getResizeHandler()}
       className="absolute inset-y-0 -right-1 z-20 w-[9px] cursor-col-resize select-none touch-none before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border"
