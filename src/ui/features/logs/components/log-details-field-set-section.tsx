@@ -48,7 +48,7 @@ function ToggleColumnButton(props: {
           <Columns className="h-3 w-3" aria-hidden />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={6}>
+      <TooltipContent side="top" sideOffset={6}>
         {props.isVisible ? "Hide column" : "Show as column"}
       </TooltipContent>
     </Tooltip>
@@ -92,7 +92,7 @@ function QuickFilterButton(props: {
           {props.label}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={6}>
+      <TooltipContent side="top" sideOffset={6}>
         {tooltip}
       </TooltipContent>
     </Tooltip>

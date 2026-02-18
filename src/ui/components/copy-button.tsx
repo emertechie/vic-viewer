@@ -50,7 +50,7 @@ export function CopyButton(props: {
           <Copy className="h-3 w-3" aria-hidden="true" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={6}>
+      <TooltipContent side="top" sideOffset={6}>
         {tooltipLabel}
       </TooltipContent>
     </Tooltip>
