@@ -203,14 +203,16 @@ export function LogsTableBody(props: {
           return (
             <div
               key={cell.id}
-              className="group/cell relative shrink-0 self-center px-1 text-foreground/90"
+              className="group/cell relative shrink-0 self-stretch px-1 text-foreground/90"
               style={{ width: `calc(var(${getColumnSizeVarName(cell.column.id)}) * 1px)` }}
             >
-              <span className="block truncate">
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </span>
+              <div className="flex h-full items-center">
+                <span className="block w-full truncate">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </span>
+              </div>
               {canApplyQuickFilter && value ? (
-                <div className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover/cell:pointer-events-auto group-hover/cell:opacity-100 group-focus-within/cell:pointer-events-auto group-focus-within/cell:opacity-100">
+                <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center opacity-0 transition-opacity duration-150 group-hover/cell:pointer-events-auto group-hover/cell:opacity-100 group-focus-within/cell:pointer-events-auto group-focus-within/cell:opacity-100">
                   <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/65 p-1 shadow-sm backdrop-blur-sm">
                     <CellQuickFilterButton
                       label="="
