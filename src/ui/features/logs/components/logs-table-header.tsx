@@ -63,7 +63,7 @@ function SortableHeaderCell(props: { header: Header<LogRow, unknown> }) {
   return (
     <div
       ref={setNodeRef}
-      className="relative shrink-0 border-r border-border/50 first:border-l"
+      className="relative shrink-0 border-border/50 first:border-l"
       style={style}
     >
       <div
