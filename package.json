@@ -5,8 +5,11 @@
   "type": "commonjs",
   "scripts": {
     "dev": "concurrently -k -n ui,api -c blue,green \"npm:dev:ui\" \"npm:dev:api\"",
+    "dev:with-log-shipping": "concurrently -k -n ui,api,ship -c blue,green,yellow \"npm:dev:ui\" \"npm:dev:api:tee\" \"npm:dev:api:ship-vl\"",
     "dev:ui": "vite",
     "dev:api": "tsx src/server/index.ts",
+    "dev:api:tee": "mkdir -p tmp && tsx src/server/index.ts 2>&1 | tee tmp/api.log",
+    "dev:api:ship-vl": "mkdir -p tmp && touch tmp/api.log && tail -n 0 -F tmp/api.log | sed -u -E 's/^[[^]]+][[:space:]]+//' | sed -u -n '/^{.*}$/p' | curl -sS -X POST -H 'Content-Type: application/stream+json' --data-binary @- \"${VICTORIA_LOGS_URL:-http://localhost:9428}/insert/jsonline?_time_field=time&_msg_field=msg&extra_fields=app=vic-viewer,component=api&_stream_fields=app,component\"",
     "start:api": "tsx src/server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
