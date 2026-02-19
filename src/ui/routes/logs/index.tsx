@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnConfigEntry, LogRow } from "@/ui/features/logs/api/types";
 import { ColumnPickerModal } from "@/ui/features/logs/components/column-picker-modal";
 import { LogDetailsDrawer } from "@/ui/features/logs/components/log-details-drawer";
+import { LogsErrorPopup } from "@/ui/features/logs/components/logs-error-popup";
 import { LogsQueryControls } from "@/ui/features/logs/components/logs-query-controls";
 import { LogsTable } from "@/ui/features/logs/components/logs-table";
 import { LogsTableToolbar } from "@/ui/features/logs/components/logs-table-toolbar";
@@ -41,6 +42,7 @@ function LogsPage() {
   const activeProfile = useActiveLogProfile();
   const columnConfig = useColumnConfig(activeProfile.data);
   const [columnPickerOpen, setColumnPickerOpen] = React.useState(false);
+  const [errorPopupMessage, setErrorPopupMessage] = React.useState<string | null>(null);
   const quickFilterService = React.useMemo(() => createLogsQuickFilterService(), []);
   const isProfileLoading = activeProfile.isLoading && !activeProfile.data;
   const profileErrorMessage = activeProfile.error
@@ -129,6 +131,14 @@ function LogsPage() {
     },
     [navigate, search],
   );
+
+  React.useEffect(() => {
+    if (!viewer.errorMessage) {
+      return;
+    }
+
+    setErrorPopupMessage(viewer.errorMessage);
+  }, [viewer.errorMessage]);
 
   React.useEffect(() => {
     if (search.live !== "1" || search.range === "absolute") {
@@ -263,7 +273,6 @@ function LogsPage() {
                 loadingNewer={viewer.loadingNewer}
                 isLoadingInitial={viewer.isLoadingInitial}
                 isRefreshing={viewer.isRefreshing}
-                errorMessage={viewer.errorMessage}
                 onLoadOlder={viewer.loadOlder}
                 onLoadNewer={viewer.loadNewer}
                 onSelectRow={onSelectRow}
@@ -299,6 +308,13 @@ function LogsPage() {
           onClose={onCloseDrawer}
           onToggleColumn={onToggleColumnVisibility}
           onApplyQuickFilter={onApplyQuickFilter}
+        />
+      ) : null}
+      {errorPopupMessage ? (
+        <LogsErrorPopup
+          key={errorPopupMessage}
+          message={errorPopupMessage}
+          onDismiss={() => setErrorPopupMessage(null)}
         />
       ) : null}
     </div>

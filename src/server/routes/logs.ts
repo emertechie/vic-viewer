@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { LogProfile } from "../schemas/logProfiles";
+import { errorResponseSchema } from "../schemas/errors";
 import type { VictoriaLogsClient } from "../vicstack/victoriaLogsClient";
 import {
   logsQueryRequestSchema,
@@ -237,6 +238,14 @@ export function registerLogsRoutes(
         },
         "Logs payload could not be parsed: expected top-level array",
       );
+
+      reply.status(502).send(
+        errorResponseSchema.parse({
+          code: "UPSTREAM_RESPONSE_INVALID",
+          message: "VictoriaLogs returned an invalid logs payload",
+        }),
+      );
+      return;
     } else if (rawRecords.length !== rawPayload.length) {
       request.log.warn(
         {

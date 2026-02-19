@@ -126,7 +126,6 @@ export function LogsTable(props: {
   loadingNewer: boolean;
   isLoadingInitial: boolean;
   isRefreshing: boolean;
-  errorMessage: string | null;
   onLoadOlder: () => Promise<void>;
   onLoadNewer: () => Promise<void>;
   onSelectRow?: (row: LogRow) => void;
@@ -289,11 +288,6 @@ export function LogsTable(props: {
 
   return (
     <div className="relative flex h-full flex-col">
-      {props.errorMessage ? (
-        <div className="border-b border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {props.errorMessage}
-        </div>
-      ) : null}
       {/* Single scroll container for header + body so they scroll horizontally together */}
       <div
         ref={setContainerRefs}
