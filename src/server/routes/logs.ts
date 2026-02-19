@@ -12,6 +12,7 @@ import {
 import {
   compareLogRows,
   extractRawLogRecords,
+  isTopLevelRawLogsPayload,
   isAfterAnchor,
   isBeforeAnchor,
   normalizeLogRecord,
@@ -107,8 +108,11 @@ function describePayloadShape(payload: unknown): Record<string, unknown> {
   };
 }
 
-function isValidTopLevelLogsPayload(payload: unknown): boolean {
-  return Array.isArray(payload) || (typeof payload === "object" && payload !== null);
+function buildInvalidUpstreamPayloadError() {
+  return errorResponseSchema.parse({
+    code: "UPSTREAM_RESPONSE_INVALID",
+    message: "VictoriaLogs returned an invalid logs payload",
+  });
 }
 
 function assertValidCursorContext(
@@ -232,7 +236,7 @@ export function registerLogsRoutes(
     });
 
     const rawRecords = extractRawLogRecords(rawPayload);
-    if (!isValidTopLevelLogsPayload(rawPayload)) {
+    if (!isTopLevelRawLogsPayload(rawPayload)) {
       request.log.warn(
         {
           route: "/api/logs/query",
@@ -240,17 +244,14 @@ export function registerLogsRoutes(
           queryHash,
           ...describePayloadShape(rawPayload),
         },
-        "Logs payload could not be parsed: expected top-level object or array",
+        "Logs payload could not be parsed: expected top-level record object or array",
       );
 
-      reply.status(502).send(
-        errorResponseSchema.parse({
-          code: "UPSTREAM_RESPONSE_INVALID",
-          message: "VictoriaLogs returned an invalid logs payload",
-        }),
-      );
+      reply.status(502).send(buildInvalidUpstreamPayloadError());
       return;
-    } else if (Array.isArray(rawPayload) && rawRecords.length !== rawPayload.length) {
+    }
+
+    if (Array.isArray(rawPayload) && rawRecords.length !== rawPayload.length) {
       request.log.warn(
         {
           route: "/api/logs/query",
