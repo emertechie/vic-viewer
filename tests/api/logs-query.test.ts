@@ -202,4 +202,37 @@ describe("logs query API", () => {
       await sequenceApp.close();
     }
   });
+
+  it("returns an error when VictoriaLogs sends a single row object payload", async () => {
+    const malformedPayloadApp = buildApp({
+      logger: false,
+      services: {
+        isDatabaseReady: () => true,
+        logsViewSettingsStore: initializedDb!.logsViewSettingsStore,
+        victoriaLogsClient: {
+          queryRaw: async () => sampleLog,
+        },
+      },
+    });
+
+    try {
+      const response = await malformedPayloadApp.inject({
+        method: "POST",
+        url: "/api/logs/query",
+        payload: {
+          query: "*",
+          start: "2026-02-14T19:00:00.000Z",
+          end: "2026-02-14T19:30:00.000Z",
+          limit: 100,
+        },
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toMatchObject({
+        code: "UPSTREAM_RESPONSE_INVALID",
+      });
+    } finally {
+      await malformedPayloadApp.close();
+    }
+  });
 });
