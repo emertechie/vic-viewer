@@ -21,10 +21,14 @@ type SortTarget = {
 };
 
 function isRawLogRecord(value: unknown): value is RawLogRecord {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function toRawLogRecordArray(value: unknown): RawLogRecord[] | null {
+  if (isRawLogRecord(value)) {
+    return [value];
+  }
+
   if (!Array.isArray(value)) {
     return null;
   }

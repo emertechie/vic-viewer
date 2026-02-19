@@ -107,6 +107,10 @@ function describePayloadShape(payload: unknown): Record<string, unknown> {
   };
 }
 
+function isValidTopLevelLogsPayload(payload: unknown): boolean {
+  return Array.isArray(payload) || (typeof payload === "object" && payload !== null);
+}
+
 function assertValidCursorContext(
   cursor: LogsCursor,
   request: LogsQueryRequest,
@@ -228,7 +232,7 @@ export function registerLogsRoutes(
     });
 
     const rawRecords = extractRawLogRecords(rawPayload);
-    if (!Array.isArray(rawPayload)) {
+    if (!isValidTopLevelLogsPayload(rawPayload)) {
       request.log.warn(
         {
           route: "/api/logs/query",
@@ -236,7 +240,7 @@ export function registerLogsRoutes(
           queryHash,
           ...describePayloadShape(rawPayload),
         },
-        "Logs payload could not be parsed: expected top-level array",
+        "Logs payload could not be parsed: expected top-level object or array",
       );
 
       reply.status(502).send(
@@ -246,7 +250,7 @@ export function registerLogsRoutes(
         }),
       );
       return;
-    } else if (rawRecords.length !== rawPayload.length) {
+    } else if (Array.isArray(rawPayload) && rawRecords.length !== rawPayload.length) {
       request.log.warn(
         {
           route: "/api/logs/query",
