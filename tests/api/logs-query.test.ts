@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../../src/server/app";
 import { initializeDatabase, type InitializedDatabase } from "../../src/server/db/init";
+import type { VictoriaLogsClient } from "../../src/server/vicstack/victoriaLogsClient";
 
 const sampleLog = {
   _time: "2026-02-14T19:25:34.66023Z",
@@ -17,6 +18,28 @@ const sampleLog = {
   span_id: "57675a26d8b5a3fb",
   trace_id: "ae301d04af9409e9d0045e81ae1eb77c",
 };
+
+const defaultLogsQueryPayload = {
+  query: "*",
+  start: "2026-02-14T19:00:00.000Z",
+  end: "2026-02-14T19:30:00.000Z",
+  limit: 100,
+};
+
+type LogsQueryPayload = {
+  query: string;
+  start: string;
+  end: string;
+  limit: number;
+  cursor?: string;
+};
+
+function buildLogsQueryPayload(overrides: Partial<LogsQueryPayload> = {}): LogsQueryPayload {
+  return {
+    ...defaultLogsQueryPayload,
+    ...overrides,
+  };
+}
 
 describe("logs query API", () => {
   let tempDir = "";
@@ -40,6 +63,19 @@ describe("logs query API", () => {
     });
   });
 
+  function buildAppWithQueryRaw(queryRaw: VictoriaLogsClient["queryRaw"]) {
+    return buildApp({
+      logger: false,
+      services: {
+        isDatabaseReady: () => true,
+        logsViewSettingsStore: initializedDb!.logsViewSettingsStore,
+        victoriaLogsClient: {
+          queryRaw,
+        },
+      },
+    });
+  }
+
   afterEach(async () => {
     if (app) {
       await app.close();
@@ -56,10 +92,7 @@ describe("logs query API", () => {
       method: "POST",
       url: "/api/logs/query",
       payload: {
-        query: "*",
-        start: "2026-02-14T19:00:00.000Z",
-        end: "2026-02-14T19:30:00.000Z",
-        limit: 100,
+        ...buildLogsQueryPayload(),
       },
     });
 
@@ -103,10 +136,7 @@ describe("logs query API", () => {
       method: "POST",
       url: "/api/logs/query",
       payload: {
-        query: "*",
-        start: "2026-02-14T19:00:00.000Z",
-        end: "2026-02-14T19:30:00.000Z",
-        limit: 100,
+        ...buildLogsQueryPayload(),
       },
     });
 
@@ -116,13 +146,10 @@ describe("logs query API", () => {
     const mismatchResponse = await app!.inject({
       method: "POST",
       url: "/api/logs/query",
-      payload: {
+      payload: buildLogsQueryPayload({
         query: "service.name:ProcureHub",
-        start: "2026-02-14T19:00:00.000Z",
-        end: "2026-02-14T19:30:00.000Z",
-        limit: 100,
         cursor: olderCursor,
-      },
+      }),
     });
 
     expect(mismatchResponse.statusCode).toBe(400);
@@ -168,12 +195,7 @@ describe("logs query API", () => {
       const initialResponse = await sequenceApp.inject({
         method: "POST",
         url: "/api/logs/query",
-        payload: {
-          query: "*",
-          start: "2026-02-14T19:00:00.000Z",
-          end: "2026-02-14T19:30:00.000Z",
-          limit: 1,
-        },
+        payload: buildLogsQueryPayload({ limit: 1 }),
       });
 
       expect(initialResponse.statusCode).toBe(200);
@@ -185,13 +207,10 @@ describe("logs query API", () => {
       const newerResponse = await sequenceApp.inject({
         method: "POST",
         url: "/api/logs/query",
-        payload: {
-          query: "*",
-          start: "2026-02-14T19:00:00.000Z",
-          end: "2026-02-14T19:30:00.000Z",
+        payload: buildLogsQueryPayload({
           limit: 1,
           cursor: initialBody.pageInfo.newerCursor,
-        },
+        }),
       });
 
       expect(newerResponse.statusCode).toBe(200);
@@ -200,6 +219,42 @@ describe("logs query API", () => {
       expect(newerBody.rows[0]?.raw?._msg).toContain("SEQ:000000002");
     } finally {
       await sequenceApp.close();
+    }
+  });
+
+  it("accepts a single row object payload from VictoriaLogs", async () => {
+    const singleRowPayloadApp = buildAppWithQueryRaw(async () => sampleLog);
+
+    try {
+      const response = await singleRowPayloadApp.inject({
+        method: "POST",
+        url: "/api/logs/query",
+        payload: buildLogsQueryPayload(),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().rows).toHaveLength(1);
+    } finally {
+      await singleRowPayloadApp.close();
+    }
+  });
+
+  it("returns an error when VictoriaLogs sends an invalid top-level payload", async () => {
+    const malformedPayloadApp = buildAppWithQueryRaw(async () => "not-json-records");
+
+    try {
+      const response = await malformedPayloadApp.inject({
+        method: "POST",
+        url: "/api/logs/query",
+        payload: buildLogsQueryPayload(),
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toMatchObject({
+        code: "UPSTREAM_RESPONSE_INVALID",
+      });
+    } finally {
+      await malformedPayloadApp.close();
     }
   });
 });
